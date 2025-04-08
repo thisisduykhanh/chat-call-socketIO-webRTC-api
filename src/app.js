@@ -9,12 +9,11 @@ const compression = require("compression");
 const apiRouter = require("~/routes");
 const morgan = require("morgan");
 const connectDB = require("~/config/mongoDB");
-const { connectRedis } = require('~/config/redis');
+const { connectRedis } = require("~/config/redis");
 
 const path = require("node:path");
 const cors = require("cors");
-const { swaggerUi, swaggerSpec } = require('~/config/swagger');
-
+const { swaggerUi, swaggerSpec } = require("~/config/swagger");
 
 require("dotenv").config();
 
@@ -26,7 +25,7 @@ const app = express();
 
 app.use(express.static(path.join(__dirname, "public")));
 
-app.use(passport.initialize())
+app.use(passport.initialize());
 // app.use(passport.session())
 
 app.use(
@@ -38,7 +37,6 @@ app.use(
 	}),
 );
 
-
 app.use(helmet());
 app.use(morgan("combined"));
 
@@ -46,12 +44,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
-
-
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-
-
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Use the apiRouter function to set up the API routes
 apiRouter(app);

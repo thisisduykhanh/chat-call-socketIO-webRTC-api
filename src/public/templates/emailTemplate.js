@@ -446,7 +446,6 @@ const Checkout_Email_Template = `
 </html>
 `;
 
-
 module.exports = {
 	Verification_Email_Template,
 	Welcome_Email_Template,
