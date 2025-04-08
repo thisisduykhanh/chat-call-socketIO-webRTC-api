@@ -1,47 +1,85 @@
+const passport = require("passport");
+const { Strategy: JwtStrategy, ExtractJwt } = require("passport-jwt");
+const { Strategy: GoogleStrategy } = require("passport-google-oauth20");
+const User = require("@/models/user.model");
+const { verifyGoogleAccount } = require("@/controllers/auth.controller");
+const config = require("./index");
 
-require('dotenv').config();
-const passport = require('passport');
-const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
-const GoogleStrategy = require('passport-google-oauth20');
-const User = require('@/models/user.model');
+/**
+ * Configure JWT strategy for Passport.
+ */
+passport.use(
+	new JwtStrategy(
+		{
+			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+			secretOrKey: config.JWT_SECRET,
+		},
+		/**
+		 * Verify JWT payload and find the user.
+		 * @param {Object} payload - Decoded JWT payload.
+		 * @param {Function} done - Callback function.
+		 */
+		async (payload, done) => {
+			try {
+				const user = await User.findById(payload.id);
+				if (!user) return done(null, false, { message: "User not found" });
+				return done(null, user);
+			} catch (error) {
+				return done(error, false);
+			}
+		},
+	),
+);
 
-const { verifyGoogleAccount } = require('@/controllers/auth.controller');
+/**
+ * Configure Google OAuth strategy for Passport.
+ */
+passport.use(
+	new GoogleStrategy(
+		{
+			clientID:
+				config.GOOGLE_CLIENT_ID ||
+				(() => {
+					throw new Error("GOOGLE_CLIENT_ID is not defined");
+				})(),
+			clientSecret:
+				config.GOOGLE_CLIENT_SECRET ||
+				(() => {
+					throw new Error("GOOGLE_CLIENT_SECRET is not defined");
+				})(),
+			callbackURL: "/api/auth/google/callback",
+			scope: ["profile", "email"],
+			state: true,
+		},
+		/**
+		 * Verify Google account and handle user authentication.
+		 * @param {string} accessToken - OAuth access token.
+		 * @param {string} refreshToken - OAuth refresh token.
+		 * @param {Object} profile - User profile information.
+		 * @param {Function} done - Callback function.
+		 */
+		verifyGoogleAccount,
+	),
+);
 
-
-passport.use(new JwtStrategy({
-  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-  secretOrKey: process.env.JWT_SECRET || 'secret'
-}, async (payload, done) => {
-
-    try {
-      // Check if the user exists in the database
-    const user = await User.findById(payload.id);
-    if (!user) return done(null, false);
-    return done(null, user);
-
-    }
-    catch (error) {
-      return done(error, false);
-    }
-}));
-
-passport.use(new GoogleStrategy.Strategy({
-  clientID: process.env.GOOGLE_CLIENT_ID || (() => { throw new Error('GOOGLE_CLIENT_ID is not defined'); })(),
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET || (() => { throw new Error('GOOGLE_CLIENT_SECRET is not defined'); })(),
-  callbackURL: '/api/auth/google/callback',
-  scope: ['profile', 'email'],
-  state: true,
-}, verifyGoogleAccount));
-
-
-
+/**
+ * Serialize user instance to the session.
+ * @param {Object} user - User object.
+ * @param {Function} done - Callback function.
+ */
 passport.serializeUser((user, done) => {
 	done(null, user.id);
 });
 
+/**
+ * Deserialize user instance from the session.
+ * @param {string} id - User ID.
+ * @param {Function} done - Callback function.
+ */
 passport.deserializeUser(async (id, done) => {
 	try {
 		const user = await User.findById(id);
+		if (!user) return done(new Error("User not found"));
 		done(null, user);
 	} catch (error) {
 		done(error);

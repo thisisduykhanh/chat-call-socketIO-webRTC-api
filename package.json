@@ -6,13 +6,13 @@
   "scripts": {
     "start": "nodemon -r tsconfig-paths/register ./src/server.js",
     "test": "nodemon -r tsconfig-paths/register ./src/server.js",
-    "lint": "biome check src/",
-    "lint:fix": "biome check src/ --fix",
-    "format": "biome format src/ --fix"
+    "lint": "biome lint src/",
+    "lint:fix": "biome lint src/ --write --unsafe",
+    "format": "biome format src/ --write"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "GPL-3.0-only",
   "lint-staged": {
     "*.{js,ts,css,json}": [
       "prettier --write",
@@ -26,7 +26,8 @@
     "morgan": "^1.10.0",
     "nodemon": "^3.1.9",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "typescript": "^5.8.3"
   },
   "dependencies": {
     "axios": "^1.8.4",
@@ -54,6 +55,7 @@
     "redis": "^4.7.0",
     "swagger-autogen": "^2.23.7",
     "tsconfig-paths": "^4.2.0",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
   }
 }

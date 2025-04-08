@@ -60,7 +60,6 @@ const comparePassword = async function (password) {
 	}
 };
 
-
 const hashPassword = async function (next) {
 	try {
 		console.log("password:", this.password);
@@ -73,5 +72,9 @@ const hashPassword = async function (next) {
 	}
 };
 
-
-module.exports = { comparePassword,hashPassword, checkValidateLogin, checkValidateRegister };
+module.exports = {
+	comparePassword,
+	hashPassword,
+	checkValidateLogin,
+	checkValidateRegister,
+};

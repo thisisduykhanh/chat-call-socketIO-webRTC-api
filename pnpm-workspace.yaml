@@ -1,0 +1,6 @@
+onlyBuiltDependencies:
+  - '@biomejs/biome'
+  - '@firebase/util'
+  - '@scarf/scarf'
+  - bcrypt
+  - protobufjs
