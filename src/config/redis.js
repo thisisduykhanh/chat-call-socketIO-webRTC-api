@@ -1,7 +1,7 @@
-const redis = require("redis");
+const {Redis} = require("ioredis");
 const config = require("./index");
 
-const redisClient = redis.createClient({
+const redisClient = new Redis({
 	url: `redis://${config.REDIS_HOST || "redis"}:${config.REDIS_PORT || 6379}`,
 });
 
@@ -14,7 +14,7 @@ const redisClient = redis.createClient({
  */
 const connectRedis = async () => {
 	try {
-		await redisClient.connect();
+		// await redisClient.connect();
 		const result = await redisClient.ping();
 		console.log("Redis ping response:", result);
 	} catch (err) {
