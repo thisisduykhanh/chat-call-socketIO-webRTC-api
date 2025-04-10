@@ -2,6 +2,8 @@
 const passport = require("passport");
 const protect = passport.authenticate("jwt", { session: false });
 
+const { verifyToken } = require("@/auth/jwt");
+
 const admin = require("~/config/firebase-admin");
 
 const verifyFirebaseToken = async (req, res, next) => {
@@ -18,7 +20,28 @@ const verifyFirebaseToken = async (req, res, next) => {
 	}
 };
 
+
+const verifyAccessToken = (req, res, next) => {
+	const token = req.headers.authorization?.split("Bearer ")[1];
+	if (!token)
+		return res.status(401).json({ message: "Missing access token" });
+
+	try {
+		const decoded = verifyToken(token);
+		req.user = decoded;
+		next();
+	} catch (error) {
+
+		if (error.name === "TokenExpiredError") {
+			return res.status(401).json({ message: "Access token expired" });
+		}
+
+		return res.status(403).json({ message: "Invalid access token" });
+	}
+};
+
 module.exports = {
 	protect,
 	verifyFirebaseToken,
+	verifyAccessToken
 };

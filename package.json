@@ -43,6 +43,7 @@
     "firebase-admin": "^13.2.0",
     "googleapis": "^148.0.0",
     "helmet": "^8.1.0",
+    "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.13.2",
     "mongoose-sequence": "^6.0.1",

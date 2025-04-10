@@ -61,6 +61,7 @@ const comparePassword = async function (password) {
 };
 
 const hashPassword = async function (next) {
+	if (!this.isModified("password") || !this.password) return next();
 	try {
 		console.log("password:", this.password);
 		const salt = await bcrypt.genSalt(10);

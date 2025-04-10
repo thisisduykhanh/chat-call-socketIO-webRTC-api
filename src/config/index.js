@@ -25,8 +25,7 @@ const isHttps =
 	process.env.SSL_CERT_PATH && process.env.SSL_KEY_PATH ? "https" : "http";
 
 const schema = z.object({
-	HOSTNAME: z.string(),
-	MONGO_APP_NAME: z.string(),
+	HOST_NAME: z.string(),
 	MONGO_URI: z.string().url(),
 	NODE_ENV: z.nativeEnum(ENVIRONMENT_MODES).default(ENVIRONMENT_MODES.DEV),
 	PORT: z.string().transform((val) => Number.parseInt(val, 10)),

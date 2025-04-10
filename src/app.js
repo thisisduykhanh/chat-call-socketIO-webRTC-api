@@ -1,8 +1,7 @@
-require("dotenv").config();
-
 const passport = require("passport");
 require("~/config/passport");
 
+const createError = require("http-errors");
 const express = require("express");
 const helmet = require("helmet");
 const compression = require("compression");

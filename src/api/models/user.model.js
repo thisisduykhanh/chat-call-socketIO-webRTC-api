@@ -23,7 +23,6 @@ const UserSchema = new mongoose.Schema({
 	isOnline: { type: Boolean, default: false },
 
 	otp: { type: String },
-	googleId: { type: String },
 
 	socketId: String, // dùng tạm trong runtime
 	lastSeen: Date,

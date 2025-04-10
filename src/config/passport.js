@@ -1,35 +1,9 @@
 const passport = require("passport");
-const { Strategy: JwtStrategy, ExtractJwt } = require("passport-jwt");
 const { Strategy: GoogleStrategy } = require("passport-google-oauth20");
 const User = require("@/models/user.model");
 const { verifyGoogleAccount } = require("@/controllers/auth.controller");
 const config = require("./index");
 
-/**
- * Configure JWT strategy for Passport.
- */
-passport.use(
-	new JwtStrategy(
-		{
-			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-			secretOrKey: config.JWT_SECRET,
-		},
-		/**
-		 * Verify JWT payload and find the user.
-		 * @param {Object} payload - Decoded JWT payload.
-		 * @param {Function} done - Callback function.
-		 */
-		async (payload, done) => {
-			try {
-				const user = await User.findById(payload.id);
-				if (!user) return done(null, false, { message: "User not found" });
-				return done(null, user);
-			} catch (error) {
-				return done(error, false);
-			}
-		},
-	),
-);
 
 /**
  * Configure Google OAuth strategy for Passport.
@@ -47,9 +21,9 @@ passport.use(
 				(() => {
 					throw new Error("GOOGLE_CLIENT_SECRET is not defined");
 				})(),
-			callbackURL: "/api/auth/google/callback",
+			callbackURL: "/google/callback",
 			scope: ["profile", "email"],
-			state: true,
+			// state: true,
 		},
 		/**
 		 * Verify Google account and handle user authentication.

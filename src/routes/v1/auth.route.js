@@ -1,7 +1,9 @@
 const express = require("express");
 const passport = require("passport");
 const AuthCtrl = require("@/controllers/auth.controller");
-const jwt = require("jsonwebtoken");
+
+const {createRefreshToken } = require("@/services/token.service");
+const { signAccessToken } = require("@/auth/jwt");
 
 const router = express.Router();
 
@@ -53,28 +55,5 @@ router.post("/verify/phone", verifyFirebaseToken, AuthCtrl.verifyPhone);
 router.post("/login", AuthCtrl.login);
 router.post("/refresh-token", AuthCtrl.refreshAccessToken);
 
-router.get(
-	"/google",
-	passport.authenticate("google", { scope: ["profile", "email"] }),
-);
-router.get(
-	"/google/callback",
-	passport.authenticate("google", {
-		session: false,
-		failureRedirect: "/login",
-		failureMessage: true,
-	}),
-	(req, res) => {
-		const payload = { id: req.user.id };
-
-		const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
-			expiresIn: "15m",
-		});
-		const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, {
-			expiresIn: "7d",
-		});
-		res.redirect(`/success?token=${accessToken}&refreshToken=${refreshToken}`);
-	},
-);
 
 module.exports = router;
