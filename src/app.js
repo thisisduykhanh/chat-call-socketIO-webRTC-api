@@ -15,6 +15,8 @@ const http = require('http');
 const path = require("node:path");
 const cors = require("cors");
 
+const errorHandler = require("@/middleware/errorHandler");
+
 
 require("dotenv").config();
 
@@ -56,15 +58,9 @@ apiRouter(app);
 
 // Error handling
 app.use((req, res, next) => {
-	next(createError(404, "Page not found"));
+    next(createError.NotFound("Page not found"));
 });
 
-app.use((error, req, res, next) => {
-	res.status(error.status || 500);
-	res.json({
-		status: error.status || 500,
-		message: error.message,
-	});
-});
+app.use(errorHandler);
 
 module.exports = server;

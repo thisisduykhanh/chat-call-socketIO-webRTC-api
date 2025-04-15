@@ -61,6 +61,46 @@ module.exports = (app, server) => {
             socket.to(data.room).emit("receiveMessage", data);
         });
 
+        // socket.on('revokeMessage', async ({ messageId }) => {
+        //     const message = await Message.findById(messageId);
+        //     if (message) {
+        //       message.isDeletedForEveryone = true;
+        //       message.text = null;
+        //       await message.save();
+          
+        //       io.to(message.conversation.toString()).emit('messageRevoked', { messageId });
+        //     }
+        //   });
+
+
+        // socket.on("sendMessage", async (data) => {
+        //     try {
+        //         // Lưu tin nhắn
+        //         const savedMessage = await sendMessage(data);
+
+        //         // Emit sự kiện tin nhắn mới đến receiver hoặc conversation
+        //         const target = data.receiver ? data.receiver : data.conversationId;
+        //         io.to(target).emit("newMessage", savedMessage);
+        //     } catch (error) {
+        //         console.error("Error sending message:", error);
+        //     }
+        // });
+
+        // // Lắng nghe sự kiện đánh dấu đã đọc
+        // socket.on("markAsRead", async ({ messageId, userId }) => {
+        //     try {
+        //         const message = await Message.findById(messageId);
+        //         if (message) {
+        //             message.status = "seen";
+        //             await message.save();
+
+        //             io.to(userId).emit("messageRead", { messageId, userId });
+        //         }
+        //     } catch (error) {
+        //         console.error("Error marking message as read:", error);
+        //     }
+        // });
+
         socket.on("typing", (data) => {
             console.log("✏️ Server received typing event:", data);
             socket.to(data.room).emit("typing", data);
