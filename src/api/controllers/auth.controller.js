@@ -42,8 +42,8 @@ const login = async (req, res) => {
 
 const refreshAccessToken = async (req, res) => {
 	try {
-		const {accessToken, refreshToken} = await AuthService.refreshAccessToken(req.body.refreshToken);
-		res.json({ accessToken, refreshToken });
+		const {accessToken, refreshToken, sessionId} = await AuthService.refreshAccessToken(req.body.refreshToken);
+		res.json({ accessToken, refreshToken, sessionId });
 	} catch (err) {
 		res.status(401).json({ message: err.message });
 	}
@@ -51,7 +51,9 @@ const refreshAccessToken = async (req, res) => {
 
 const logout = async (req, res) => {
 	try {
-		await AuthService.logout(req.body.userId);
+
+		console.log(req.user);
+		await AuthService.logout(req.user.id, req.user.sessionId);
 		res.json({ message: "Logout successfully" });
 	} catch (err) {
 		res.status(500).json({ message: err.message });
@@ -59,6 +61,54 @@ const logout = async (req, res) => {
 };
 
 const verifyGoogleAccount = AuthService.verifyGoogleAccount.bind(AuthService);
+
+const forgotPassword = async (req, res) => {
+	try {
+		const result = await AuthService.forgotPassword(req.body);
+		res.json(result);
+	} catch (err) {
+		res.status(400).json({ message: err.message });
+	}
+};
+
+const verifyOTPResetPassword = async (req, res) => {
+	try {
+		const result = await AuthService.verifyOTPResetPassword(req.body);
+
+		res.json(result);
+	} catch (err) {
+		res.status(400).json({ message: err.message });
+	}
+}
+
+const resetPassword = async (req, res) => {
+	try {
+		const result = await AuthService.resetPassword(req.body);
+		res.json(result);
+	} catch (err) {
+		res.status(400).json({ message: err.message });
+	}
+};
+
+const changePassword = async (req, res) => {
+	try {
+
+		// console.log(req.user);
+		const result = await AuthService.changePassword({ userId: req.user.id, ...req.body });
+		res.json(result);
+	} catch (err) {
+		res.status(400).json({ message: err.message });
+	}
+};
+
+const logoutAllSessions = async (req, res) => {
+	try {
+		await AuthService.logoutAllSessions(req.user.id, req.user.sessionId);
+		res.json({ message: "Logout all sessions successfully" });
+	} catch (err) {
+		res.status(500).json({ message: err.message });
+	}
+};
 
 module.exports = {
 	register,
@@ -68,4 +118,9 @@ module.exports = {
 	verifyGoogleAccount,
 	verifyPhone,
 	logout,
+	logoutAllSessions,
+	forgotPassword,
+	verifyOTPResetPassword,
+	resetPassword,
+	changePassword,
 };

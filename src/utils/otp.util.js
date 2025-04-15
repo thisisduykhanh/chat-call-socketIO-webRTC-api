@@ -1,4 +1,4 @@
-const { setExAsync, delAsync, getAsync } = require("~/config/redis");
+const { setAsync, delAsync, getAsync } = require("~/config/redis");
 const generateOTP = require("~/utils/otpGenerator.util");
 const sendEmail = require("~/utils/sendEmail.util");
 const {
@@ -16,7 +16,8 @@ const sendOTP = async (user) => {
 	await delAsync(`otp:${user._id}`); // Delete old OTP if it exists
 
 	const otp = generateOTP(); // Generate a new OTP
-	await setExAsync(`otp:${user._id}`, otp, 300); // OTP expires in 5 minutes
+	await setAsync(`otp:${user._id}`, otp, 300); // OTP expires in 5 minutes
+
 
 	const emailTemplate = Verification_Email_Template.replace(
 		"{verificationCode}",
@@ -35,7 +36,14 @@ const sendOTP = async (user) => {
  */
 const verifyOTP = async (user, otp) => {
 	const realOtp = await getAsync(`otp:${user._id}`);
-	return realOtp === otp;
+	if (!realOtp) return false;
+
+	if (realOtp === otp.trim()) {
+		await delAsync(`otp:${user._id}`);
+		return true;
+	}
+
+	return false;
 };
 
 module.exports = { sendOTP, verifyOTP };

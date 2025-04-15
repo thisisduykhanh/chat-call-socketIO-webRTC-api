@@ -10,17 +10,23 @@ const morgan = require("morgan");
 const connectDB = require("~/config/mongoDB");
 const { connectRedis } = require("~/config/redis");
 
+const socket = require("~/config/socket");
+const http = require('http');
 const path = require("node:path");
 const cors = require("cors");
-const { swaggerUi, swaggerSpec } = require("~/config/swagger");
+
 
 require("dotenv").config();
+
+const app = express();
+const server = http.createServer(app);
+
 
 // connect to database
 connectDB();
 connectRedis();
+socket(app, server);
 
-const app = express();
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -29,7 +35,7 @@ app.use(passport.initialize());
 
 app.use(
 	cors({
-		origin: process.env.FRONTEND_URL,
+		origin: "*",
 		methods: ["GET", "POST", "PATCH", "DELETE"],
 		allowedHeaders: ["Content-Type", "Authorization", "Accept"],
 		credentials: true,
@@ -43,7 +49,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 
 // Use the apiRouter function to set up the API routes
 apiRouter(app);
@@ -61,4 +67,4 @@ app.use((error, req, res, next) => {
 	});
 });
 
-module.exports = app;
+module.exports = server;

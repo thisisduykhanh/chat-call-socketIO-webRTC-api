@@ -22,6 +22,13 @@ const signRefreshToken = (payload) => {
 	});
 };
 
+const generateResetToken = (payload) => {
+	return JWT.sign(payload, privateKey, {
+		algorithm: process.env.JWT_ALGORITHM,
+		expiresIn: "20m",
+	});
+};
+
 // Verify a token (access or refresh)
 const verifyToken = (token) => {
 	return JWT.verify(token, publicKey, { algorithms: [process.env.JWT_ALGORITHM] });
@@ -30,5 +37,6 @@ const verifyToken = (token) => {
 module.exports = {
 	signAccessToken,
 	signRefreshToken,
+	generateResetToken,
 	verifyToken,
 };

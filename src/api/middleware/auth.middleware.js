@@ -24,7 +24,7 @@ const verifyFirebaseToken = async (req, res, next) => {
 const verifyAccessToken = (req, res, next) => {
 	const token = req.headers.authorization?.split("Bearer ")[1];
 	if (!token)
-		return res.status(401).json({ message: "Missing access token" });
+		return res.status(401).json({ message: "Unauthorized" });
 
 	try {
 		const decoded = verifyToken(token);

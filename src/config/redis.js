@@ -38,31 +38,31 @@ redisClient.on("ready", () => {
  * @returns {Promise<void>}
  * @throws {Error} If there is an error setting the value.
  */
-const setAsync = async (key, value, options) => {
+const setAsync = async (key, value, seconds) => {
 	try {
-		await redisClient.set(key, JSON.stringify(value), options);
+		await redisClient.set(key, JSON.stringify(value), "EX", seconds);
 	} catch (err) {
 		console.error("Error setting value in Redis:", err);
 	}
 };
 
-/**
- * Set a value in Redis with an expiration time.
- *
- * @async
- * @param {string} key - The key to set.
- * @param {any} value - The value to set.
- * @param {number} seconds - The expiration time in seconds.
- * @returns {Promise<void>}
- * @throws {Error} If there is an error setting the value with expiration.
- */
-const setExAsync = async (key, value, seconds) => {
-	try {
-		await redisClient.setEx(key, seconds, JSON.stringify(value));
-	} catch (err) {
-		console.error("Error setting value in Redis with expiration:", err);
-	}
-};
+// /**
+//  * Set a value in Redis with an expiration time.
+//  *
+//  * @async
+//  * @param {string} key - The key to set.
+//  * @param {any} value - The value to set.
+//  * @param {number} seconds - The expiration time in seconds.
+//  * @returns {Promise<void>}
+//  * @throws {Error} If there is an error setting the value with expiration.
+//  */
+// const setExAsync = async (key, value, seconds) => {
+// 	try {
+// 		await redisClient.setEx(key, seconds, JSON.stringify(value));
+// 	} catch (err) {
+// 		console.error("Error setting value in Redis with expiration:", err);
+// 	}
+// };
 
 /**
  * Get a value from Redis.
@@ -133,12 +133,49 @@ const rangeAsync = async (key, start, stop) => {
 	}
 };
 
+const getKeysAsync = async (key) => {
+	return await redisClient.keys(key);
+};
+
+
+const delKeysAsync = async (pattern) => {
+    try {
+        let cursor = '0';
+        let keysToDelete = [];
+
+        do {
+            const reply = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+            cursor = reply[0];
+            const keys = reply[1];
+
+            if (keys.length > 0) {
+                keysToDelete.push(...keys);
+            }
+        } while (cursor !== '0');
+
+        if (keysToDelete.length > 0) {
+            const deleted = await redisClient.del(...keysToDelete);
+            console.log(`Deleted ${deleted} keys matching pattern "${pattern}"`);
+            return deleted;
+        }
+
+        return 0;
+    } catch (err) {
+        console.error(`Failed to delete keys with pattern "${pattern}":`, err);
+        throw err;
+    }
+};
+
+
+
 module.exports = {
 	setAsync,
-	setExAsync,
+	// setExAsync,
 	getAsync,
 	delAsync,
 	pushAsync,
 	rangeAsync,
 	connectRedis,
+	getKeysAsync,
+	delKeysAsync,
 };

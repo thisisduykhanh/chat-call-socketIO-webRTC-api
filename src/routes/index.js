@@ -9,8 +9,8 @@ const { signAccessToken } = require("@/auth/jwt");
 const apiRouter = (app) => {
     app.use(`/api/${process.env.Version}`, rateLimit, apiRouter_v1);
 
-    app.get("/google", passport.authenticate("google"));
-
+    app.get("/google", rateLimit, passport.authenticate("google"));
+	
     app.get(
         "/google/callback",
         passport.authenticate("google", {
@@ -25,11 +25,17 @@ const apiRouter = (app) => {
 
             //Tạo access token + refresh token ở đây nếu dùng JWT
 
-            const accessToken = signAccessToken(payload);
-            const refreshToken = await createRefreshToken(payload);
+            const { refreshToken, sessionId } = await createRefreshToken(payload);
+            const accessToken = signAccessToken({...payload, sessionId});
 
-            // 👉 Gửi về frontend hoặc set cookie
-			res.redirect(`/success?token=${accessToken}&refreshToken=${refreshToken}`);
+            // // 👉 Gửi về frontend hoặc set cookie
+			// res.redirect(`/success?token=${accessToken}&refreshToken=${refreshToken}`);
+
+			res.status(200).json({
+				accessToken,
+				refreshToken: refreshToken,
+                sessionId: sessionId,
+			});
         }
     );
 };
