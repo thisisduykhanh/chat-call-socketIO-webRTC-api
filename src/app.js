@@ -10,7 +10,7 @@ const morgan = require("morgan");
 const connectDB = require("~/config/mongoDB");
 const { connectRedis } = require("~/config/redis");
 
-const socket = require("~/config/socket");
+const socket = require("~/socket");
 const http = require('http');
 const path = require("node:path");
 const cors = require("cors");

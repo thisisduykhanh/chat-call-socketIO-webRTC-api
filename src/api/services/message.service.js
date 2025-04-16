@@ -2,6 +2,7 @@ const Message = require("@/models/message.model");
 const Conversation = require("@/models/conversation.model");
 const CreateError = require("http-errors");
 
+
 class MessageService {
     async createMessage({ conversationId, sender, receiver, type, content }) {
         const conversation = await Conversation.findById(conversationId);
@@ -36,34 +37,42 @@ class MessageService {
     }
 
 
-    async deleteMessage(messageId) {
-        const message = await Message.findByIdAndDelete(messageId);
-        if (!message) {
+    async deleteMessage(messageId, userId) {
+        const message = await Message.findById(messageId);
+        if (!message || !message.sender.equals(userId)) {
             throw CreateError.NotFound("Message not found.");
         }
+
+        if(message.isDeletedForEveryone) {
+            throw CreateError.NotFound("Message already deleted.");
+        }
+
+        message.isDeletedForEveryone = true;
+
+        await message.save();
+
         return { success: true, message: "Message deleted successfully." };
     }
 
 
-    // async reactToMessage(messageId, userId, type) {
-    //     const message = await Message.findById(messageId);
-    //     if (!message) {
-    //         throw CreateError.NotFound("Message not found.");
-    //     }
+    async updateMessageContent(messageId, userId, newContent) {
+        const message = await Message.findById(messageId);
+        if (!message) {
+            throw CreateError.NotFound("Message not found.");
+        }
 
-    //     // Cập nhật hoặc thêm reaction
-    //     const existingReactionIndex = message.reactions.findIndex(
-    //         (r) => r.user.toString() === userId
-    //     );
+        if (!message.sender.equals(userId)) throw CreateError.Forbidden("You are not allowed to edit this message.");
 
-    //     if (existingReactionIndex !== -1) {
-    //         message.reactions[existingReactionIndex].type = type;
-    //     } else {
-    //         message.reactions.push({ user: userId, type });
-    //     }
+        if (!message.isEdited) {
+            message.originalContent = message.content;
+        }
 
-    //     return await message.save();
-    // }
+        message.content = newContent;
+        message.isEdited = true;
+        message.editedAt = new Date();
+        
+        return await message.save();
+    }
 
     
 }

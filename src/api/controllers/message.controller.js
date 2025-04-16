@@ -16,8 +16,10 @@ module.exports = {
 
     sendMessage: async (req, res, next) => {
         try {
-            const { conversationId, sender, receiver, type, content } =
+            const { conversationId, receiver, type, content } =
                 req.body;
+
+            const sender = req.user.id;
 
             const newMessage = await messageService.createMessage({
                 conversationId,
@@ -54,10 +56,26 @@ module.exports = {
     },
 
 
+    editMessage: async (req, res, next) => {
+      try {
+          const { messageId } = req.params;
+          const { content: newContent } = req.body;
+          const userId = req.user.id; // hoặc req.userId nếu dùng JWT
+  
+          const updatedMessage = await messageService.updateMessageContent(messageId, userId, newContent);
+  
+          res.status(200).json(updatedMessage);
+      } catch (error) {
+          next(error);
+      }
+  },
+
+
     deleteMessage: async (req, res, next) => {
         try {
             const { messageId } = req.params;
-            const result = await messageService.deleteMessage(messageId);
+            const userId = req.user.id; // hoặc req.userId nếu dùng JWT
+            const result = await messageService.deleteMessage(messageId, userId);
             return res.status(200).json(result);
         } catch (error) {
             return next(error);
@@ -69,8 +87,11 @@ module.exports = {
     pinMessage: async (req, res, next) => {
         try {
             const { messageId } = req.params;
-            const { userId } = req.body;
-            const result = await pinnedMessageService.pinMessage(messageId, userId);
+           
+            const { conversationId } = req.body;
+
+            const userId = req.user.id; // hoặc req.userId nếu dùng JWT
+            const result = await pinnedMessageService.pinMessage(conversationId, messageId, userId);
             return res.status(200).json(result);
         } catch (error) {
             return next(error);
@@ -144,4 +165,8 @@ module.exports = {
           next(error);
         }
       },
+
+
+      
+    
 };

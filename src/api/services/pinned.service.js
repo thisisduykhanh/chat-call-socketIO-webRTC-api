@@ -1,15 +1,10 @@
-const PinnedMessage = require("@/models/pinnedMessage.model");
-const Message = require("@/models/message.model");
-const Conversation = require("@/models/conversation.model");
+const PinnedMessage = require("@/models/pinned.model");
 const CreateError = require("http-errors");
 
 class PinnedMessageService {
-    async pinMessage({ conversationId, messageId, userId }) {
-        const message = await Message.findById(messageId);
-        if (!message) {
-            throw new CreateError.NotFound("Message not found.");
-        }
+    async pinMessage(conversationId, messageId, userId) {
 
+       
         const pinnedMessage = await PinnedMessage.findOne({ conversationId, messageId });
         if (pinnedMessage) {
             throw new CreateError.Conflict("Message already pinned.");

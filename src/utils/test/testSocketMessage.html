@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Chat Socket.IO</title>
+</head>
+<body>
+  <h2>Test Gửi Tin Nhắn</h2>
+  <input type="text" id="conversationId" placeholder="Conversation ID"><br>
+  <input type="text" id="content" placeholder="Nội dung"><br>
+  <button onclick="sendMessage()">Gửi Tin Nhắn</button>
+
+  <h2>Test Reaction</h2>
+  <input type="text" id="messageId" placeholder="Message ID"><br>
+  <input type="text" id="reaction" placeholder="Reaction Emoji (❤️, 😂, ...)"><br>
+  <button onclick="sendReaction()">React</button>
+  <button onclick="removeReaction()">Unreact</button>
+
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script>
+    const socket = io("http://localhost:8080", {
+        extraHeaders: {
+            Authorization: "Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3Zjc0YzE5NTcwNzk3YmUxNWM1NzgwNyIsInVzZXJuYW1lIjoiMTEyMDExOTY3MjA0NjQ5NjE1MDQ0Iiwic2Vzc2lvbklkIjoiODk3ZDgxNjItNzhhNC00MjYyLTkzMDctMTg2YWE0YzMwNzBkIiwiaWF0IjoxNzQ0ODE4MDQ0LCJleHAiOjE3NzYzNzU2NDR9.nYLE3yFAp1UirXYzctmLqJwRK8h_mDfODSDvXJYjM2DUNOYsqg4gTYLW-3-uueUlmyGgGzvGuFXY-k7GVC7lAMXORC4Gm9VU44SNC54ogwIlzL2_vJVXjIZSYj7FQajQ0twE-0IAbob0O8u39OIfLbkTRZuPkPGrqz-VxBqvk2T8i51ki7eHVePf6xi9x1a_KKiH-YZnGm5_VUKYC50qUwHqoNslVJJZUOxf6khR8oNAohIOvfK9bKsHfyueNdNOwvcffffEXfEOlUzC2K-PR5A7V3dW1Db9Ne4YtGEQUKR4zr-9HCs1bqg95jS8OZsk52MNNZTYOZ2II7cYYdkXaA"
+      }
+    });
+
+
+    socket.on("connect", () => {
+      console.log("✅ Connected", socket.id);
+    });
+
+    socket.on("message:new", (data) => {
+      console.log("📩 New Message:", data);
+    });
+
+    socket.on("message:reacted", (data) => {
+      console.log("🔥 Reacted:", data);
+    });
+
+    socket.on("message:unreacted", (data) => {
+      console.log("❌ Unreacted:", data);
+    });
+
+    socket.on("error", (err) => {
+      console.error("❌ Error:", err);
+    });
+
+    function sendMessage() {
+      const conversationId = document.getElementById("conversationId").value;
+      const content = document.getElementById("content").value;
+
+      socket.emit("message:send", {
+        conversationId,
+        content,
+        type: "text"
+      });
+    }
+
+    function sendReaction() {
+      const messageId = document.getElementById("messageId").value;
+      const reaction = document.getElementById("reaction").value;
+
+      socket.emit("message:reaction", {
+        messageId,
+        reaction
+      });
+    }
+
+    function removeReaction() {
+      const messageId = document.getElementById("messageId").value;
+      const reaction = document.getElementById("reaction").value;
+
+      socket.emit("message:unreaction", {
+        messageId,
+        reaction
+      });
+    }
+  </script>
+</body>
+</html>

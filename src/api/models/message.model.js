@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const MediaSchema = require("@/models/media.model");
 
 const MessageSchema = new mongoose.Schema(
     {
@@ -39,11 +40,8 @@ const MessageSchema = new mongoose.Schema(
         // Nội dung văn bản, emoji hoặc thông tin liên quan
         content: { type: String },
 
-        // File/Media (ảnh, video, v.v)
-        fileUrl: { type: String },
-        mimeType: { type: String },
-        fileName: { type: String },
-        fileSize: { type: Number },
+        media: [MediaSchema],
+          
 
         // Vị trí nếu gửi location
         location: {
@@ -84,9 +82,6 @@ const MessageSchema = new mongoose.Schema(
             default: 0,
         },
 
-        // Ghim tin nhắn
-        isPinned: { type: Boolean, default: false },
-
         // Thu hồi/xóa
         isDeletedForEveryone: { type: Boolean, default: false },
         deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -94,6 +89,7 @@ const MessageSchema = new mongoose.Schema(
         // Sửa tin nhắn
         isEdited: { type: Boolean, default: false },
         editedAt: { type: Date },
+        originalContent: { type: String, default: null },
 
         // Trạng thái
         status: {
@@ -101,6 +97,13 @@ const MessageSchema = new mongoose.Schema(
             enum: ["sent", "delivered", "seen"],
             default: "sent",
         },
+
+        seenBy: [
+            {
+                user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+                seenAt: { type: Date, default: Date.now },
+            },
+        ],
 
         // Mention bạn bè
         mentions: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
@@ -119,7 +122,6 @@ const MessageSchema = new mongoose.Schema(
 MessageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
 MessageSchema.index({ conversation: 1, createdAt: -1 });
 MessageSchema.index({ replyTo: 1 });
-MessageSchema.index({ isPinned: 1 });
 MessageSchema.index({ threadRoot: 1 });
 
 module.exports = mongoose.model("Message", MessageSchema);
