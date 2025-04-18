@@ -16,17 +16,17 @@ module.exports = {
 
     sendMessage: async (req, res, next) => {
         try {
-            const { conversationId, receiver, type, content } =
+            const { conversationId, receiverId, content, ...rest  } =
                 req.body;
 
             const sender = req.user.id;
 
             const newMessage = await messageService.createMessage({
-                conversationId,
                 sender,
-                receiver,
-                type,
+                conversationId,
+                receiver: receiverId,
                 content,
+                ...rest,
             });
 
             return res.status(201).json(newMessage);

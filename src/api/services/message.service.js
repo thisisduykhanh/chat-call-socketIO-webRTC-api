@@ -1,27 +1,36 @@
 const Message = require("@/models/message.model");
 const Conversation = require("@/models/conversation.model");
 const CreateError = require("http-errors");
-
+const conversationService = require("@/services/conversation.service");
 
 class MessageService {
-    async createMessage({ conversationId, sender, receiver, type, content }) {
-        const conversation = await Conversation.findById(conversationId);
-        if (!conversation) {
-            throw CreateError.NotFound("Conversation not found.");
+
+    async createMessage({ senderId, receiverId = null, conversationId = null, content, ...rest }) {
+        let conversation;
+    
+        if (conversationId) {
+            // 🟦 Nhắn nhóm — conversation đã có
+            conversation = await Conversation.findById(conversationId);
+
+            if (!conversation) throw new CreateError.NotFound("Conversation not found");
+        } else if (receiverId) {
+            // 🟩 1:1 — Tìm hoặc tạo conversation giữa 2 người
+            conversation = await conversationService.getOrCreateOneToOneConversation(senderId, receiverId);
+        } else {
+            throw new CreateError.BadRequest("Missing receiverId or conversationId");
         }
-
+    
         const message = new Message({
-            conversation: conversationId,
-            sender,
-            receiver,
-            type,
+            conversation: conversation._id,
+            sender: senderId,
+            receiver: receiverId || null,
             content,
+            ...rest,
         });
-
-        const savedMessage = await message.save();
-
-        return savedMessage;
+    
+        return await message.save();
     }
+    
 
     async getMessages(conversationId) {
 

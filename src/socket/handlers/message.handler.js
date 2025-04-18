@@ -2,19 +2,32 @@ const messageService = require('@/services/message.service');
 const reactionService = require('@/services/reaction.service');
 const pinnedMessageService = require('@/services/pinned.service');
 // const reactionService = require('@/services/reaction.service');
+const {emitToConversation} = require('~/socket/utils/socket.helpers');
 
 module.exports = (socket, io) => {
-    socket.on('message:send', async (payload) => {
+
+    socket.on("conversation:join", (conversationId) => {
+        socket.join("6801b8d45b1e152c807f0998");
+        console.log(`User ${socket.id} joined conversation ${conversationId.toString()}`);
+      });
+      
+    socket.on("message:send", async ({ receiverId, conversationId, content, ...rest }) => {
 		try {
-			const message = await messageService.createMessage({
-				sender: socket.user.id,
-				...payload,
+			const msg = await messageService.createMessage({
+				senderId: socket.user.id,
+				receiverId,
+				conversationId,
+				content,
+				...rest,
 			});
 
-			io.to(payload.conversationId).emit('message:new', message);
+            // console.log("Message sent:", msg);
+
+			emitToConversation(io, socket, msg.conversation.toString(), msg);
+
 		} catch (err) {
-			console.error(err);
-			socket.emit('error', 'Không thể gửi tin nhắn');
+			console.error("Send message error:", err.message);
+			socket.emit("error", { message: err.message });
 		}
 	});
 

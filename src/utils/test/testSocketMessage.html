@@ -29,6 +29,10 @@
       console.log("✅ Connected", socket.id);
     });
 
+    const conversationId = "67f74c19570797be15c57807"
+    socket.emit("conversation:join", conversationId);
+
+
     socket.on("message:new", (data) => {
       console.log("📩 New Message:", data);
     });
