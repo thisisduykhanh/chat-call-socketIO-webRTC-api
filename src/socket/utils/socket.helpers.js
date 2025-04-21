@@ -1,12 +1,16 @@
-const emitToConversation = (io, socket, conversationId, msg) => {
+const emitToConversation = ({io, socket, conversationId, receiverId, msg}) => {
 
-    io.to(conversationId).emit("message:new", msg);
-  
-    // Gửi lại cho người gửi, phòng trường hợp họ chưa join room.
-    socket.emit("message:new", {
+    // tin nhắn 1:1
+    if (receiverId && conversationId) {
+      io.to(receiverId).emit("message:new", msg);
+      socket.emit("message:new", {
         message: msg,
         status: "sent",
       });
+    }
+
+    // tin nhắn nhóm
+    io.to(conversationId).emit("message:new", msg);    
   };
   
   module.exports = {

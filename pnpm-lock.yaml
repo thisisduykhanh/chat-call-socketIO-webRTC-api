@@ -38,6 +38,9 @@ importers:
       firebase-admin:
         specifier: ^13.2.0
         version: 13.2.0
+      google-auth-library:
+        specifier: ^9.15.1
+        version: 9.15.1
       googleapis:
         specifier: ^148.0.0
         version: 148.0.0
@@ -92,6 +95,9 @@ importers:
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
+      validator:
+        specifier: ^13.15.0
+        version: 13.15.0
       zod:
         specifier: ^3.24.2
         version: 3.24.2
@@ -450,6 +456,7 @@ packages:
 
   bignumber.js@9.2.0:
     resolution: {integrity: sha512-JocpCSOixzy5XFJi2ub6IMmV/G9i8Lrm2lZvwBv9xPdglmZM0ufDVBbjbrfU/zuLvBfD7Bv2eYxz9i+OHTgkew==}
+    deprecated: pkg version number incorrect
 
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
@@ -1716,6 +1723,10 @@ packages:
   uuid@9.0.1:
     resolution: {integrity: sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA==}
     hasBin: true
+
+  validator@13.15.0:
+    resolution: {integrity: sha512-36B2ryl4+oL5QxZ3AzD0t5SsMNGvTtQHpjgFO5tbNxfXbMFkY822ktCDe1MnlqV3301QQI9SLHDNJokDI+Z9pA==}
+    engines: {node: '>= 0.10'}
 
   vary@1.1.2:
     resolution: {integrity: sha512-BNGbWLfd0eUPabhkXUVm0j8uuvREyTh5ovRa/dyow/BqAbZJyC+5fU+IzQOzmAKzYqYRAISoRhdQr3eIZ/PXqg==}
@@ -3589,6 +3600,8 @@ snapshots:
     optional: true
 
   uuid@9.0.1: {}
+
+  validator@13.15.0: {}
 
   vary@1.1.2: {}
 

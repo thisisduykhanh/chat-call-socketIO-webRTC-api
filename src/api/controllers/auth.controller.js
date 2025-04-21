@@ -1,5 +1,14 @@
 const AuthService = require("@/services/auth.service");
 
+const getMe = async (req, res) => {
+	try {
+		const user = await AuthService.getMe(req.user.id);
+		res.json(user);
+	} catch (err) {
+		res.status(500).json({ message: err.message });
+	}
+};
+
 const register = async (req, res) => {
 	try {
 		await AuthService.register(req.body);
@@ -110,7 +119,25 @@ const logoutAllSessions = async (req, res) => {
 	}
 };
 
+
+async function googleTokenLogin(req, res) {
+	const { idToken } = req.body;
+
+	if (!idToken) {
+		return res.status(400).json({ message: "Missing idToken" });
+	}
+
+	try {
+		const { accessToken, refreshToken, sessionId } = await AuthService.verifyGoogleTokenId(idToken);
+		res.status(200).json({ accessToken, refreshToken, sessionId });
+	} catch (error) {
+		console.error("Google login error:", error);
+		res.status(401).json({ message: error.message || "Google login failed" });
+	}
+}
+
 module.exports = {
+	googleTokenLogin,
 	register,
 	verifyEmail,
 	login,
@@ -123,4 +150,5 @@ module.exports = {
 	verifyOTPResetPassword,
 	resetPassword,
 	changePassword,
+	getMe,
 };

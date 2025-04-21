@@ -16,6 +16,14 @@ class ConversationService {
         });
         return await newConversation.save();
     }
+
+    async getConversationByUserId(userId) {
+        const conversations = await Conversation.find({
+            participants: userId,
+        }).populate("participants", "username avatarUrl name").populate("lastMessage", "content sender createdAt").sort({ updatedAt: -1 });
+
+        return conversations;
+    }
 }
 
 module.exports = new ConversationService();

@@ -5,6 +5,11 @@ const bcrypt = require("bcrypt");
 const { sendOTP, verifyOTP } = require("~/utils/otp.util");
 const FederatedCredential = require("@/models/federatedCredential.model");
 
+const { OAuth2Client } = require("google-auth-library");
+const config = require("~/config");
+
+
+
 const {
     delAsync,
     getAsync,
@@ -27,6 +32,17 @@ const {
 const admin = require("~/config/firebase-admin");
 
 class AuthService {
+
+    async getMe(userId) {
+        try {
+            const user = await User.findById(userId);
+            if (!user) throw CreateError.NotFound("User not found");
+            return { id: user._id, name: user.name, username: user.username, avatar: user.avatarUrl, email: user.email, phone: user.phone };
+        } catch (error) {
+            throw error;
+        }
+    }
+
     async register({ name, email, phone, password }) {
         try {
             if (!email && !phone)
@@ -120,7 +136,10 @@ class AuthService {
             }
 
             if (!user.verified) {
-                await sendOTP(user);
+
+                if (user.email === emailOrPhone)
+                    await sendOTP(user);
+
                 throw CreateError.Unauthorized(
                     user.email === emailOrPhone
                         ? "Please check email to verify!"
@@ -284,6 +303,64 @@ class AuthService {
         }
     }
 
+    async verifyGoogleTokenId(idToken) {
+        try {
+            const client = new OAuth2Client();
+
+            const ticket = await client.verifyIdToken({
+                idToken,
+                audience: [
+                    config.GOOGLE_CLIENT_ID_ANDROID,
+                    config.GOOGLE_CLIENT_ID,
+                    // config.GOOGLE_CLIENT_ID_IOS,
+                  ],
+            });
+    
+            const payload = ticket.getPayload();
+            const googleId = payload.sub;
+            const email = payload.email || null;
+            const name = payload.name || null;
+            const avatar = payload.picture || null;
+            const phone = payload.phone || undefined;
+    
+            let cred = await FederatedCredential.findOne({
+                provider: "https://accounts.google.com",
+                subject: googleId,
+            });
+    
+            let user;
+    
+            if (!cred) {
+                const newUser = new User({
+                    email,
+                    name,
+                    phone: phone,
+                    username: googleId,
+                    verified: true,
+                    avatarUrl: avatar,
+                });
+                const savedUser = await newUser.save();
+    
+                await new FederatedCredential({
+                    user_id: savedUser._id,
+                    provider: "https://accounts.google.com",
+                    subject: googleId,
+                }).save();
+    
+                user = savedUser;
+            } else {
+                user = await User.findById(cred.user_id);
+            }
+    
+            const payloadJwt = { id: user._id, username: user.username };
+            const { refreshToken, sessionId } = await createRefreshToken(payloadJwt);
+            const accessToken = signAccessToken({ ...payloadJwt, sessionId });
+    
+            return { accessToken, refreshToken, sessionId };
+        } catch (err) {
+            throw new Error("Invalid Google token");
+        }
+    }
     async forgotPassword({ emailOrPhone }) {
         try {
             const user = await User.findOne({

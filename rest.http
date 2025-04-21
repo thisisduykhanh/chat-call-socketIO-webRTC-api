@@ -3,7 +3,7 @@ POST http://localhost:8080/api/v1/users/register
 Content-Type: application/json
 
 {
-    "email": "khanhmh2004@gmail.com",
+    "email": "duykhanh180324@gmail.com",
     "password": "123456",
     "name": "khanh"
 }
@@ -13,13 +13,13 @@ POST http://localhost:8080/api/v1/users/login
 Content-Type: application/json
 
 {
-    "emailOrPhone": "khanhmh2004@gmail.com",
+    "emailOrPhone": "ledinhkhanh.pt4@gmail.com",
     "password": "123456"
 }
 
 ### logout
 DELETE  http://localhost:8080/api/v1/users/logout
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3Zjc0YzE5NTcwNzk3YmUxNWM1NzgwNyIsInVzZXJuYW1lIjoiMTEyMDExOTY3MjA0NjQ5NjE1MDQ0Iiwic2Vzc2lvbklkIjoiYjdmYTMwZWYtMDBmNC00NzcwLWI5MzMtMDNhYjY2NjA5ZmIwIiwiaWF0IjoxNzQ0NDgxOTEwLCJleHAiOjE3NzYwMzk1MTB9.J1XkZiZhFS447dd-mKmZtqmN8xsK0T4puZ655osusYdVeqNUgGQTrmjPTNK9_G3lmxt1OXuOUPVvJBF48zjsmf9YqAQDnULyITstMkPVtOLVzuS-f8ecKIQbpqKBQHY2SZflRvG4joaLl9LipX0ME0n8QgXk2A2wGQHxNBg8OXzwUZP6ohswPutY3fxJ3oO7jVNTU3GkBaIV_tQPCiTTXyotgyfNBYEo2u1gbLAug4XGcOOBLGT0PSt7cIZt06_n4wFoJHc2LInTVR73MmJMDAtirdvGMvCwwhmplJufxYLHBp3Y9PX2gYkAVeLW7ZYS0qcIH9ToJAf2B6pQzNKoXg
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3Zjc0YzE5NTcwNzk3YmUxNWM1NzgwNyIsInVzZXJuYW1lIjoiMTEyMDExOTY3MjA0NjQ5NjE1MDQ0Iiwic2Vzc2lvbklkIjoiMzgzNGIxNjMtMmM5ZS00ZDE2LWFmNDEtNWYyN2E0MzEwMTIxIiwiaWF0IjoxNzQ1MjIwMTYwLCJleHAiOjE3NDUyMjE5NjB9.FL6wlLnfA7TiPC_zUHn7xj7LKRQDk7duuJFW4zkaQDORw3Bh7IIo7itaMnrJvNdU-wmFpVGj8yS5T-WtFUNa8axgz2umQQvfEwPwwpYaPOk5y_tFVJTFi7Gk4GSAKqQs1rrL5CbH50941XEVsonX4ZEyvBreaDsaumhfL0GIAuHcBcq-u24gFV9wO7_DVUyNzeJrYrMG2TxHyvXLmGaazCJrenaZxjGBjnD2xGjdyRe-W2Kbo0tTuXvoIiRuWj_stcVLKT9_OidmsMEVrhLjGRY1HZBCovFb2KN3jE5g8fO6fv_t2gucZIsq2n_Rytb1nwSLixoMXd5nQuCacvn1Ow
 
 ### Logout all devices
 DELETE http://localhost:8080/api/v1/users/logout-all
@@ -32,7 +32,7 @@ POST http://localhost:8080/api/v1/users/verify/email
 Content-Type: application/json
 
 {
-    "email": "khanhmh2004@gmail.com",
+    "email": "ledinhkhanh.pt4@gmail.com",
     "otp": "523880"
 }
 

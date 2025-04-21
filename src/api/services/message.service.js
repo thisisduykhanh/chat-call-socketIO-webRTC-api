@@ -27,8 +27,12 @@ class MessageService {
             content,
             ...rest,
         });
+
+        conversation.lastMessage = message._id;
+        await message.save();
+        await conversation.save();
     
-        return await message.save();
+        return message;
     }
     
 
