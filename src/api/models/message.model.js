@@ -45,10 +45,15 @@ const MessageSchema = new mongoose.Schema(
 
         // Vị trí nếu gửi location
         location: {
-            lat: Number,
-            lng: Number,
-            name: String,
-        },
+            type: {
+              lat: { type: Number, required: true },
+              lng: { type: Number, required: true },
+              name: { type: String },
+            },
+            required: function () {
+              return this.type === 'location';
+            },
+          },
 
         // Thông tin danh bạ nếu gửi contact
         contact: {

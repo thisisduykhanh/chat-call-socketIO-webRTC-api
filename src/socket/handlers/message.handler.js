@@ -19,13 +19,37 @@ module.exports = (socket, io) => {
 
     socket.on(
         "message:send",
-        async ({tempId, receiverId, conversationId, content, ...rest }) => {
+        async ({
+            tempId,
+            receiverId,
+            conversationId,
+            content,
+            files,
+            type,
+            location,
+            ...rest
+        }) => {
             try {
+                let filesToUpload = [];
+
+                if (files) {
+                    filesToUpload = [
+                        {
+                            buffer: Buffer.from(files),
+                            mimetype:
+                                type === "image" ? "image/jpeg" : "video/mp4", 
+                        },
+                    ];
+                }
+
                 const msg = await messageService.createMessage({
                     senderId: socket.user.id,
                     receiverId,
                     conversationId,
                     content,
+                    files:filesToUpload,
+                    type,
+                    location,
                     ...rest,
                 });
 
