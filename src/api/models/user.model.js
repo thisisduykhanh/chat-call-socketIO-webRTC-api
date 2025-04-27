@@ -36,4 +36,11 @@ UserSchema.methods.comparePassword = comparePassword;
 
 UserSchema.index({ email: 1, phone: 1 }, { unique: true });
 
+UserSchema.index({
+	username: 'text',
+	email: 'text',
+	phone: 'text',
+	name: 'text',
+  });
+
 module.exports = mongoose.model("User", UserSchema);

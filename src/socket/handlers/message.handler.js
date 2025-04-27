@@ -19,7 +19,7 @@ module.exports = (socket, io) => {
 
     socket.on(
         "message:send",
-        async ({ receiverId, conversationId, content, ...rest }) => {
+        async ({tempId, receiverId, conversationId, content, ...rest }) => {
             try {
                 const msg = await messageService.createMessage({
                     senderId: socket.user.id,
@@ -29,7 +29,7 @@ module.exports = (socket, io) => {
                     ...rest,
                 });
 
-                // console.log("Message sent:", msg);
+                console.log("Message sent:", msg);
 
                 emitToConversation({
                     io,
@@ -37,6 +37,7 @@ module.exports = (socket, io) => {
                     conversationId: msg.conversation.toString(),
                     receiverId: msg.receiver,
                     msg,
+                    tempId: tempId,
                 });
             } catch (err) {
                 console.error("Send message error:", err.message);

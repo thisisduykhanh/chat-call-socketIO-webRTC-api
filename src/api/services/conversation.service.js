@@ -20,7 +20,14 @@ class ConversationService {
     async getConversationByUserId(userId) {
         const conversations = await Conversation.find({
             participants: userId,
-        }).populate("participants", "username avatarUrl name").populate("lastMessage", "content sender createdAt").sort({ updatedAt: -1 });
+        }).populate("participants", "username avatarUrl name").populate({
+            path: "lastMessage",
+            select: "content sender createdAt",
+            populate: {
+              path: "sender",
+              select: "username avatarUrl name",
+            },
+          }).sort({ updatedAt: -1 });
 
         return conversations;
     }

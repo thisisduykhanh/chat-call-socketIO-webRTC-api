@@ -13,6 +13,8 @@ router.get("/me", verifyAccessToken, AuthCtrl.getMe);
 // POST /api/auth/google/token
 router.post("/login/google", AuthCtrl.googleTokenLogin); 
 
+
+
 router.post("/register", AuthCtrl.register);
 router.post("/verify/email", AuthCtrl.verifyEmail);
 router.post("/verify/phone", verifyFirebaseToken, AuthCtrl.verifyPhone);

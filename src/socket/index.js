@@ -3,8 +3,11 @@ const registerMessageHandlers = require("./handlers/message.handler");
 
 const socketAuth = require("~/socket/middleware/auth");
 
-let peers = new Set();
+const UserService = require("~/api/services/user.service");
 
+const redisClient = require("~/config/redis");
+
+let peers = new Set();
 
 
 module.exports = (app, server) => {
@@ -15,33 +18,37 @@ module.exports = (app, server) => {
             credentials: true,
         },
     });
-    
+
     app.set("io", io);
 
     // authentication middleware
     io.use(socketAuth);
 
+    io.on("connection", async (socket) => {
+        const userId = socket.user.id;
+        await redisClient.setAsync(`user:${userId}:status`, "online", 60);
+        console.log(`User ${userId} status updated to online`);
 
-    io.on("connection", (socket) => {
-        console.log(`🔵 User connected: ${socket.user.id}`);
+
+        socket.on("ping-online", () => {
+            const userId = socket.user.id;
+            redisClient.setAsync(`user:${userId}:status`, "online", 60);
+
+            console.log(`User ${userId} status updated to online`);
+        });
 
         // Đăng ký các logic xử lý
         registerMessageHandlers(socket, io);
 
-        socket.on("typing", (data) => {
-            console.log("✏️ Server received typing event:", data);
-            socket.to(data.room).emit("typing", data);
-        });
-
-        socket.on("ice-candidate", (data) => {
-            console.log("🧊 Server received ICE candidate:", data.candidate);
-            socket.to(data.room).emit("ice-candidate", data);
-        });
-
         socket.on("disconnect", () => {
             console.log(`🔴 User disconnected: ${socket.user.id}`);
 
-            io.emit("user_disconnected", socket.id);
+            UserService.updateLastSeen(socket.user.id).catch((err) => {
+                console.error("Error updating last seen:", err.message);
+            });
+
+            redisClient.delAsync(`user:${socket.user.id}:status`);
+            
         });
     });
 

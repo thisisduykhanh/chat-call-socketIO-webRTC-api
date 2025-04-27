@@ -33,16 +33,6 @@ const admin = require("~/config/firebase-admin");
 
 class AuthService {
 
-    async getMe(userId) {
-        try {
-            const user = await User.findById(userId);
-            if (!user) throw CreateError.NotFound("User not found");
-            return { id: user._id, name: user.name, username: user.username, avatar: user.avatarUrl, email: user.email, phone: user.phone };
-        } catch (error) {
-            throw error;
-        }
-    }
-
     async register({ name, email, phone, password }) {
         try {
             if (!email && !phone)

@@ -167,6 +167,22 @@ module.exports = {
       },
 
 
+      getMessagesByConversationId: async (req, res, next) => {
+        try {
+            const { conversationId, receiverId } = req.query;
+
+            if (!conversationId && !receiverId) {
+                return res.status(400).json({ message: "conversationId or receiverId is required" });
+            }
+            
+            const userId = req.user.id;
+            const messages = await messageService.getMessagesByConversationId({conversationId,receiverId, userId, });
+            return res.status(200).json(messages);
+        } catch (error) {
+            next(error);
+        }
+    },
+
       
     
 };

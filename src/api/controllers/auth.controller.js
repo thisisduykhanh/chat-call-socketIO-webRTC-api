@@ -1,8 +1,9 @@
 const AuthService = require("@/services/auth.service");
+const UserService = require("@/services/user.service");
 
 const getMe = async (req, res) => {
 	try {
-		const user = await AuthService.getMe(req.user.id);
+		const user = await UserService.getMe(req.user.id);
 		res.json(user);
 	} catch (err) {
 		res.status(500).json({ message: err.message });

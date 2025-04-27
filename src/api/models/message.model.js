@@ -124,4 +124,6 @@ MessageSchema.index({ conversation: 1, createdAt: -1 });
 MessageSchema.index({ replyTo: 1 });
 MessageSchema.index({ threadRoot: 1 });
 
+MessageSchema.index({ content: 'text' });
+
 module.exports = mongoose.model("Message", MessageSchema);

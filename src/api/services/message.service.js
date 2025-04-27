@@ -9,12 +9,14 @@ class MessageService {
         let conversation;
     
         if (conversationId) {
-            // 🟦 Nhắn nhóm — conversation đã có
+           
+            console.log("Conversation ID:", conversationId);    
             conversation = await Conversation.findById(conversationId);
 
             if (!conversation) throw new CreateError.NotFound("Conversation not found");
         } else if (receiverId) {
-            // 🟩 1:1 — Tìm hoặc tạo conversation giữa 2 người
+         
+            console.log("Receiver ID:", receiverId);
             conversation = await conversationService.getOrCreateOneToOneConversation(senderId, receiverId);
         } else {
             throw new CreateError.BadRequest("Missing receiverId or conversationId");
@@ -23,12 +25,13 @@ class MessageService {
         const message = new Message({
             conversation: conversation._id,
             sender: senderId,
-            receiver: receiverId || null,
+            receiver:  receiverId || null,
             content,
             ...rest,
         });
 
         conversation.lastMessage = message._id;
+        
         await message.save();
         await conversation.save();
     
@@ -87,7 +90,38 @@ class MessageService {
         return await message.save();
     }
 
-    
+    async getMessagesByConversationId({conversationId, receiverId, userId}) {
+        let conversation;
+
+        if(receiverId){
+            conversation = await Conversation.findOne({
+                participants: { $all: [userId, receiverId],  $size: 2 },
+                isGroup: false,
+            });
+            if (!conversation) {
+                throw CreateError.NotFound("Conversation not found.");
+            }
+        }else{
+            conversation = await Conversation.findById(conversationId);
+            if (!conversation) {
+                throw CreateError.NotFound("Conversation not found.");
+            }
+
+            if (!conversation.participants.includes(userId)) {
+                throw CreateError.Forbidden("You are not a member of this conversation.");
+            }
+        }
+
+        
+        const messages = await Message.find({ conversation: conversation._id })
+        .sort({ createdAt: 1 })
+        .populate({
+          path: 'sender',
+          select: 'avatarUrl name', // CHỈ lấy trường avatar
+        });
+
+        return messages;
+    }
 }
 
 module.exports = new MessageService();
