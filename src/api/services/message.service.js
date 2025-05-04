@@ -11,7 +11,7 @@ class MessageService {
         conversationId = null,
         content,
         files = [],
-        type = "text",
+        type,
         location = null,
         ...rest
     }) {

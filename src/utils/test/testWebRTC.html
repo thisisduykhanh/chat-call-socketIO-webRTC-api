@@ -1,279 +1,35 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <title>WebRTC Demo</title>
-        <style>
-            #video-container {
-                position: relative;
-                width: 100vw;
-                height: 70vh;
-                background: #111;
-            }
-
-            video {
-                position: absolute;
-                border-radius: 0.5rem;
-                object-fit: cover;
-                transition: all 0.3s ease;
-            }
-        </style>
-    </head>
-    <body>
-        <h2>WebRTC Video Chat</h2>
-        <input id="room" placeholder="Room ID" />
-        <button onclick="joinRoom()">Join Room</button>
-        <br /><br />
-        <div id="video-container">
-            <video id="localVideo" autoplay muted playsinline></video>
-            <video id="remoteVideo" autoplay playsinline></video>
-        </div>
-
-        <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-        <script>
-            const socket = io("http://192.168.70.116:8080");
-
-            let localStream;
-            let peer;
-            let room;
-            let isCameraReady = false;
-
-            const localVideo = document.getElementById("localVideo");
-            const remoteVideo = document.getElementById("remoteVideo");
-
-            async function joinRoom() {
-                room = document.getElementById("room").value.trim();
-                if (!room) {
-                    alert("Vui lòng nhập Room ID!");
-                    return;
-                }
-
-                if (!isCameraReady) {
-                    await startLocalCamera();
-                    isCameraReady = true;
-                }
-
-                socket.emit("joinRoom", room);
-            }
-
-            async function startLocalCamera() {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({
-                        video: true,
-                        audio: true,
-                    });
-                    localVideo.srcObject = localStream;
-                    console.log("✅ Local camera started");
-                } catch (err) {
-                    console.error("🚫 Cannot access camera:", err);
-                    alert("Không thể mở camera: " + err.message);
-                }
-            }
-
-            async function createPeer(isCaller) {
-                try {
-                    console.log("📞 Creating peer. Is caller?", isCaller);
-
-                    const configuration = {
-          iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        };
-        const turnConfigs = {
-          iceServers: [
-            { urls: "stun:stun.relay.metered.ca:80" },
-            {
-              urls: "turn:standard.relay.metered.ca:80",
-              username: "5909c54f47e4dbfd7b50294c",
-              credential: "mvFXnZjdK/p2uClf",
-            },
-            {
-              urls: "turn:standard.relay.metered.ca:80?transport=tcp",
-              username: "5909c54f47e4dbfd7b50294c",
-              credential: "mvFXnZjdK/p2uClf",
-            },
-            {
-              urls: "turn:standard.relay.metered.ca:443",
-              username: "5909c54f47e4dbfd7b50294c",
-              credential: "mvFXnZjdK/p2uClf",
-            },
-            {
-              urls: "turns:standard.relay.metered.ca:443?transport=tcp",
-              username: "5909c54f47e4dbfd7b50294c",
-              credential: "mvFXnZjdK/p2uClf",
-            },
-          ],
-        };
-        const selectedConfigs = turnConfigs;
-
-                    peer = new RTCPeerConnection(
-                        selectedConfigs
-                    );
-
-                    peer.onconnectionstatechange = () => {
-                        console.log(
-                            "🔄 Connection state:",
-                            peer.connectionState
-                        );
-                        if (peer.connectionState === "failed") {
-                            console.error("🚫 WebRTC connection failed");
-                        }
-                    };
-
-                    localStream.getTracks().forEach((track) => {
-                        peer.addTrack(track, localStream);
-                        console.log("🎥 Added track:", track.kind);
-                    });
-
-                    peer.onicecandidate = (e) => {
-                        if (e.candidate) {
-                            socket.emit("ice-candidate", {
-                                candidate: e.candidate,
-                                room: room,
-                            });
-                        }
-                    };
-
-                    peer.ontrack = (e) => {
-                        console.log("🔥 ontrack triggered");
-                        if (remoteVideo.srcObject !== e.streams[0]) {
-                            remoteVideo.srcObject = e.streams[0];
-                            console.log("✅ Remote video attached");
-
-                            // Đợi tí rồi layout lại
-                            setTimeout(() => layoutVideos(true), 500);
-                        }
-                    };
-
-                    if (isCaller) {
-                        const offer = await peer.createOffer();
-                        await peer.setLocalDescription(offer);
-                        socket.emit("offer", {
-                            offer: peer.localDescription,
-                            room: room,
-                        });
-                    }
-                } catch (err) {
-                    console.error("🚫 Error in createPeer:", err);
-                }
-            }
-
-            socket.on("joined", async ({ room, isInitiator }) => {
-                console.log("✅ Joined room:", room, "Initiator:", isInitiator);
-
-                if (!isCameraReady) {
-                    await startLocalCamera();
-                    isCameraReady = true;
-                }
-
-                createPeer(isInitiator);
-
-                // Nếu là người đầu tiên → chủ động layout
-                if (isInitiator) {
-                    setTimeout(() => layoutVideos(true), 1000);
-                }
-            });
-
-            socket.on("offer", async (data) => {
-                console.log("📩 Received offer");
-                createPeer(false);
-                await peer.setRemoteDescription(
-                    new RTCSessionDescription(data.offer)
-                );
-                const answer = await peer.createAnswer();
-                await peer.setLocalDescription(answer);
-                socket.emit("answer", { answer, room: room });
-            });
-
-            socket.on("answer", async (data) => {
-                console.log("📩 Received answer:", data.answer);
-                await peer.setRemoteDescription(
-                    new RTCSessionDescription(data.answer)
-                );
-            });
-
-            socket.on("ice-candidate", async (data) => {
-                try {
-                    if (peer && data.candidate) {
-                        await peer.addIceCandidate(data.candidate);
-                        console.log("🧊 ICE candidate added:", data.candidate);
-                    }
-                } catch (e) {
-                    console.error("🚫 Error adding ICE candidate", e);
-                }
-            });
-
-            // 📦 Receive layout update
-            socket.on("layout-update", (layoutData) => {
-                layoutData.forEach((item) => {
-                    const video = document.getElementById(item.id);
-                    if (video) {
-                        Object.assign(video.style, {
-                            left: `${item.left}px`,
-                            top: `${item.top}px`,
-                            width: `${item.width}px`,
-                            height: `${item.height}px`,
-                        });
-                    }
-                });
-            });
-
-            // 📐 Calculate and send layout to others
-            function layoutVideos(emit = false) {
-                const container = document.getElementById("video-container");
-                const videos = [localVideo, remoteVideo].filter(v => v.srcObject);
-                const total = videos.length;
-
-                const containerWidth = container.clientWidth;
-                const containerHeight = container.clientHeight;
-
-                let bestCols = 1;
-                let bestRows = total;
-                let maxArea = 0;
-
-                for (let cols = 1; cols <= total; cols++) {
-                    const rows = Math.ceil(total / cols);
-                    const w = containerWidth / cols;
-                    const h = w * (9 / 16);
-                    if (h * rows <= containerHeight) {
-                        const area = w * h * total;
-                        if (area > maxArea) {
-                            maxArea = area;
-                            bestCols = cols;
-                            bestRows = rows;
-                        }
-                    }
-                }
-
-                const videoWidth = containerWidth / bestCols;
-                const videoHeight = videoWidth * (9 / 16);
-
-                const layoutData = [];
-
-                videos.forEach((video, i) => {
-                    const row = Math.floor(i / bestCols);
-                    const col = i % bestCols;
-                    const left = col * videoWidth;
-                    const top = row * videoHeight;
-
-                    Object.assign(video.style, {
-                        left: `${left}px`,
-                        top: `${top}px`,
-                        width: `${videoWidth}px`,
-                        height: `${videoHeight}px`,
-                    });
-
-                    layoutData.push({
-                        id: video.id,
-                        left,
-                        top,
-                        width: videoWidth,
-                        height: videoHeight,
-                    });
-                });
-
-                if (emit) {
-                    socket.emit("layout-update", layoutData);
-                }
-            }
-        </script>
-    </body>
+<html>
+<head>
+  <title>Group Video Call (Max 8 Participants)</title>
+  <style>
+    video { width: 200px; border: 1px solid black; margin: 5px; }
+    #callButton { padding: 10px; background: green; color: white; cursor: pointer; }
+    #callPopup { position: fixed; top: 20%; left: 50%; transform: translateX(-50%); background: white; padding: 20px; border: 1px solid black; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+    button { margin: 5px; padding: 8px 16px; cursor: pointer; }
+    #videos { display: flex; flex-wrap: wrap; }
+    #errorMessage { color: red; display: none; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div>
+    <input id="conversationId" placeholder="Enter Conversation ID" />
+    <input id="userId" placeholder="Enter Your ID" />
+    <button onclick="joinConversation()">Join Conversation</button>
+  </div>
+  <div>
+    <button id="callButton" onclick="startCall()">Start Call</button>
+  </div>
+  <div id="videos">
+    <video id="localVideo" autoplay playsinline muted></video>
+  </div>
+  <div id="callPopup">
+    <p>Incoming call from <span id="callerId"></span></p>
+    <button onclick="acceptCall()">Join Call</button>
+    <button onclick="rejectCall()">Reject Call</button>
+    <p id="errorMessage"></p>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
 </html>

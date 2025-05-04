@@ -31,6 +31,13 @@ class ConversationService {
 
         return conversations;
     }
+
+    async getAllParticipants(conversationId) {
+        const conversation = await Conversation.findById(conversationId).populate("participants", "username avatarUrl name");
+        if (!conversation) throw new Error("Conversation not found");
+
+        return conversation.participants;
+    }
 }
 
 module.exports = new ConversationService();

@@ -38,13 +38,28 @@ redisClient.on("ready", () => {
  * @returns {Promise<void>}
  * @throws {Error} If there is an error setting the value.
  */
+// const setAsync = async (key, value, seconds) => {
+// 	try {
+// 		await redisClient.set(key, JSON.stringify(value), "EX", seconds);
+// 	} catch (err) {
+// 		console.error("Error setting value in Redis:", err);
+// 	}
+// };
+
+
 const setAsync = async (key, value, seconds) => {
 	try {
+	  if (typeof seconds === 'number' && seconds > 0) {
 		await redisClient.set(key, JSON.stringify(value), "EX", seconds);
+	  } else {
+		await redisClient.set(key, JSON.stringify(value));
+	  }
 	} catch (err) {
-		console.error("Error setting value in Redis:", err);
+	  console.error(`Error setting value in Redis for key ${key}:`, err);
+	  throw err;
 	}
-};
+  };
+
 
 // /**
 //  * Set a value in Redis with an expiration time.
@@ -166,6 +181,83 @@ const delKeysAsync = async (pattern) => {
     }
 };
 
+const existsAsync = async (key) => {
+	try {
+		const exists = await redisClient.exists(key);
+		return exists === 1;
+	} catch (err) {
+		console.error("Error checking existence of key in Redis:", err);
+		throw err;
+	}
+};
+
+
+
+const hSetAsync = async (key, data) => {
+	try {
+		await redisClient.hset(key, data);
+	} catch (err) {
+		console.error(`Error setting hash for key ${key}:`, err);
+	}
+};
+
+
+const hGetAllAsync = async (key) => {
+	return await redisClient.hgetall(key);
+  };
+  
+
+const sAddAsync = async (key, member) => {
+	try {
+		await redisClient.sadd(key, member);
+	} catch (err) {
+		console.error(`Error adding member to set ${key}:`, err);
+	}
+};
+
+const sCardAsync = async (key) => {
+	try {
+		return await redisClient.scard(key);
+	} catch (err) {
+		console.error(`Error getting cardinality of set ${key}:`, err);
+	}
+}
+
+const sMembersAsync = async (key) => {
+	try {
+		return await redisClient.smembers(key);
+	} catch (err) {
+		console.error(`Error getting members of set ${key}:`, err);
+	}
+};
+
+const sRemAsync = async (key, member) => {
+	try {
+		await redisClient.srem(key, member);
+	} catch (err) {
+		console.error(`Error removing member from set ${key}:`, err);
+	}
+};
+
+
+const saveInfoCallAsync = async ({ callKey, participantsKey, userId }) => {
+	try {
+		await redisClient.multi()
+			.hset(callKey, {
+				initiator: userId,
+				startTime: new Date().toISOString(),
+			})
+			.sadd(participantsKey, userId)
+			.expire(callKey, 3600)
+			.expire(participantsKey, 3600)
+			.exec();
+
+		console.log(`Saved call info for user ${userId}`);
+	} catch (err) {
+		console.error("Error saving call info:", err);
+	}
+};
+
 
 
 module.exports = {
@@ -178,4 +270,12 @@ module.exports = {
 	connectRedis,
 	getKeysAsync,
 	delKeysAsync,
+	saveInfoCallAsync,
+	existsAsync,
+	hSetAsync,
+	sAddAsync,
+	sCardAsync,
+	sMembersAsync,
+	sRemAsync,
+	hGetAllAsync
 };
