@@ -1,32 +1,56 @@
 const rateLimit = require("express-rate-limit");
+const { RateLimiterRedis } = require("rate-limiter-flexible");
+const Redis = require("~/config/redis");
 
-const rateLimiterMiddleware = rateLimit({
+// Global rate limiter
+const globalRateLimiter = rateLimit({
 	windowMs: 60 * 1000, // 1 minute
 	max: 100, // limit each IP to 100 requests per windowMs
 	message: { message: "Too many requests, please try again later." },
+	standardHeaders: true,
+	legacyHeaders: false,
 });
 
-// const {RateLimiterRedis} = require("rate-limiter-flexible");
-// const Redis = require("~/config/redis");
+// Auth endpoints rate limiter (more strict)
+const authRateLimiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 5, // limit each IP to 5 requests per windowMs
+	message: { message: "Too many login attempts, please try again later." },
+	standardHeaders: true,
+	legacyHeaders: false,
+});
 
-// const rateLimiter = new RateLimiterRedis({
-// 	storeClient: Redis,
-// 	points: 100, // Number of points
-// 	duration: 60, // Per second
-// 	keyPrefix: "rateLimiter",
-// });
+// API endpoints rate limiter
+const apiRateLimiter = rateLimit({
+	windowMs: 60 * 1000, // 1 minute
+	max: 60, // limit each IP to 60 requests per windowMs
+	message: { message: "Too many API requests, please try again later." },
+	standardHeaders: true,
+	legacyHeaders: false,
+});
 
-// const rateLimiterMiddleware = (req, res, next) => {
-// 	rateLimiter
-// 		.consume(req.ip)
-// 		.then(() => {
-// 			next();
-// 		})
-// 		.catch((err) => {
-// 			res.status(429).json({
-// 				message: "Too many requests, please try again later.",
-// 			});
-// 		});
-// }
+// Redis-based rate limiter for WebSocket connections
+const wsRateLimiter = new RateLimiterRedis({
+	storeClient: Redis,
+	keyPrefix: "ws_rate_limit",
+	points: 10, // Number of points
+	duration: 1, // Per second
+	blockDuration: 60, // Block for 60 seconds if consumed
+});
 
-module.exports = rateLimiterMiddleware;
+// WebSocket rate limiting middleware
+const wsRateLimiterMiddleware = async (socket, next) => {
+	try {
+		await wsRateLimiter.consume(socket.handshake.address);
+		next();
+	} catch (error) {
+		next(new Error("Too many WebSocket connections"));
+	}
+};
+
+module.exports = {
+	globalRateLimiter,
+	authRateLimiter,
+	apiRateLimiter,
+	wsRateLimiterMiddleware,
+};

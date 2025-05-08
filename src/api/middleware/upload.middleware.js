@@ -1,10 +1,9 @@
 const multer = require("multer");
-const cloudinary = require("~/config/cloudinary");
 const { uploadFileToFirebaseStorage } = require("~/utils/firebaseStorage.util");
 // const path = require("node:path");
 // const fs = require("node:fs");
 require("dotenv").config();
-const streamifier = require("streamifier");
+const CreateError = require("http-errors");
 
 // Lưu file trên Cloudinary
 
@@ -36,27 +35,38 @@ const streamifier = require("streamifier");
 // 	},
 // });
 
-const fileFilter = (req, file, cb) => {
-	const allowedTypes = [
-		"image/jpeg",
-		"image/png",
-		"video/mp4",
+// File size limits
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILES = 5;
+
+// Allowed file types with their MIME types
+const ALLOWED_FILE_TYPES = {
+	image: ["image/jpeg", "image/png", "image/gif", "image/webp"],
+	video: ["video/mp4", "video/webm", "video/quicktime"],
+	document: [
 		"application/pdf",
 		"application/msword",
+		"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	],
+	spreadsheet: [
 		"application/vnd.ms-excel",
-		"text/plain",
+		"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	],
+	text: ["text/plain", "text/csv"],
+	archive: [
 		"application/zip",
 		"application/x-rar-compressed",
-	];
+		"application/x-7z-compressed",
+	],
+};
+
+const fileFilter = (req, file, cb) => {
+	const allowedTypes = Object.values(ALLOWED_FILE_TYPES).flat();
 
 	if (allowedTypes.includes(file.mimetype)) {
 		cb(null, true);
 	} else {
-		console.warn(
-			`⚠️ File rejected: ${file.originalname} (Type: ${file.mimetype})`,
-		);
-		// cb(null, false);
-		cb(new Error("File type not allowed"), false);
+		cb(new CreateError(400, `File type ${file.mimetype} not allowed`), false);
 	}
 };
 
@@ -76,63 +86,39 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
 	storage: multer.memoryStorage(),
-	limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+	limits: {
+		fileSize: MAX_FILE_SIZE,
+		files: MAX_FILES,
+	},
 	fileFilter: fileFilter,
 });
 
 const uploadMiddleware = () => {
-	return (req, res, next) => {
-		upload.array("files", 5)(req, res, async (err) => {
-			if (err) {
+	return (req, res) => {
+		upload.array("files", MAX_FILES)(req, res, async (err) => {
+			if (err instanceof multer.MulterError) {
+				if (err.code === "LIMIT_FILE_SIZE") {
+					return res.status(400).json({
+						message: `File size exceeds ${MAX_FILE_SIZE / (1024 * 1024)}MB limit`,
+					});
+				}
+				if (err.code === "LIMIT_FILE_COUNT") {
+					return res.status(400).json({
+						message: `Maximum ${MAX_FILES} files allowed`,
+					});
+				}
+				return res.status(400).json({ message: err.message });
+			} else if (err) {
 				return res.status(400).json({ message: err.message });
 			}
 
 			if (!req.files || req.files.length === 0) {
-				return res
-					.status(400)
-					.json({ message: "No files uploaded or file type not allowed" });
-			}
-
-			try {
-				const uploadResults = await Promise.all(
-					req.files.map((file) => {
-						const fileType = file.mimetype.split("/")[0];
-
-						if (fileType === "image" || fileType === "video") {
-							return new Promise((resolve, reject) => {
-								const uploadStream = cloudinary.uploader.upload_stream(
-									{
-										folder: "uploads",
-										resource_type: "auto",
-									},
-									(error, result) => {
-										if (error) {
-											reject(error);
-										} else {
-											resolve({
-												type: "cloudinary",
-												url: result.secure_url,
-												resource_type: result.resource_type,
-											});
-										}
-									},
-								);
-								streamifier.createReadStream(file.buffer).pipe(uploadStream);
-							});
-						}
-						// Document file
-						return uploadFileToFirebaseStorage(file);
-					}),
-				);
-
-				req.uploadedFiles = uploadResults; // Gán vào req để dùng ở controller
-				next();
-			} catch (error) {
-				console.error(error);
-				return res.status(500).json({ message: error.message });
+				return res.status(400).json({
+					message: "No files uploaded or file type not allowed",
+				});
 			}
 		});
 	};
 };
 
-module.exports = { uploadMiddleware };
+module.exports = uploadMiddleware;

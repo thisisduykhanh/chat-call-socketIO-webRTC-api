@@ -1,10 +1,11 @@
 const { Server } = require("socket.io");
 const registerMessageHandlers = require("./handlers/message.handler");
-
 const socketAuth = require("~/socket/middleware/auth");
+const {
+	wsRateLimiterMiddleware,
+} = require("@/middleware/rateLimit.middleware");
 
 const UserService = require("~/api/services/user.service");
-
 const {
 	setAsync,
 	getAsync,
@@ -19,16 +20,16 @@ const {
 } = require("~/config/redis");
 
 const ConversationService = require("~/api/services/conversation.service");
-
 const {
-	sendCallNotification,
 	sendCallNotificationMulticast,
 } = require("~/utils/sendPushNotification.util");
 
-const peers = new Set();
-
 const MAX_PARTICIPANTS = 8;
+const MAX_CONNECTIONS_PER_USER = 3;
 const activeCalls = new Map();
+
+// Track user connections
+const userConnections = new Map();
 
 module.exports = (app, server) => {
 	const io = new Server(server, {
@@ -37,15 +38,53 @@ module.exports = (app, server) => {
 			methods: ["GET", "POST"],
 			credentials: true,
 		},
+		maxHttpBufferSize: 1e8, // 100MB
+		pingTimeout: 60000,
+		pingInterval: 25000,
+		connectTimeout: 45000,
 	});
 
 	app.set("io", io);
 
-	// authentication middleware
+	// Apply rate limiting middleware
+	io.use(wsRateLimiterMiddleware);
+
+	// Apply authentication middleware
 	io.use(socketAuth);
 
+	// Connection tracking middleware
+	io.use((socket, next) => {
+		const userId = socket.user?.id;
+		if (!userId) {
+			return next(new Error("Authentication required"));
+		}
+
+		const userSockets = userConnections.get(userId) || new Set();
+		if (userSockets.size >= MAX_CONNECTIONS_PER_USER) {
+			return next(new Error("Maximum connections reached"));
+		}
+
+		userSockets.add(socket.id);
+		userConnections.set(userId, userSockets);
+		next();
+	});
+
+	// Handle disconnection
 	io.on("connection", async (socket) => {
-		const userId = socket.user.id;
+		const userId = socket.user?.id;
+
+		socket.on("disconnect", () => {
+			if (userId) {
+				const userSockets = userConnections.get(userId);
+				if (userSockets) {
+					userSockets.delete(socket.id);
+					if (userSockets.size === 0) {
+						userConnections.delete(userId);
+					}
+				}
+			}
+		});
+
 		socket.join(userId);
 		await setAsync(`user:${userId}:status`, "online", 60);
 		console.log(`User ${userId} status updated to online`);
@@ -74,7 +113,6 @@ module.exports = (app, server) => {
 		socket.on("start-call", async ({ conversationId }) => {
 			const callKey = `call:${conversationId}`;
 			const participantsKey = `${callKey}:participants`;
-			const startTime = new Date();
 			const callId = Date.now().toString();
 
 			if (await existsAsync(callKey)) {
