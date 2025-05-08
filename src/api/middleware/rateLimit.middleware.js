@@ -16,7 +16,7 @@ const rateLimiterMiddleware = rateLimit({
 // 	keyPrefix: "rateLimiter",
 // });
 
-// const rateLimiterMiddleware = (req, res, next) => { 
+// const rateLimiterMiddleware = (req, res, next) => {
 // 	rateLimiter
 // 		.consume(req.ip)
 // 		.then(() => {
@@ -28,6 +28,5 @@ const rateLimiterMiddleware = rateLimit({
 // 			});
 // 		});
 // }
-
 
 module.exports = rateLimiterMiddleware;

@@ -22,7 +22,8 @@ const register = async (req, res) => {
 const verifyEmail = async (req, res) => {
 	try {
 		const result = await AuthService.verifyEmail(req.body);
-		if (result.alreadyVerified) return res.json({ message: "Already verified" });
+		if (result.alreadyVerified)
+			return res.json({ message: "Already verified" });
 
 		res.json(result);
 	} catch (err) {
@@ -33,7 +34,8 @@ const verifyEmail = async (req, res) => {
 const verifyPhone = async (req, res) => {
 	try {
 		const result = await AuthService.verifyPhone(req.body);
-		if (result.alreadyVerified) return res.json({ message: "Already verified" });
+		if (result.alreadyVerified)
+			return res.json({ message: "Already verified" });
 
 		res.json(result);
 	} catch (err) {
@@ -52,7 +54,8 @@ const login = async (req, res) => {
 
 const refreshAccessToken = async (req, res) => {
 	try {
-		const {accessToken, refreshToken, sessionId} = await AuthService.refreshAccessToken(req.body.refreshToken);
+		const { accessToken, refreshToken, sessionId } =
+			await AuthService.refreshAccessToken(req.body.refreshToken);
 		res.json({ accessToken, refreshToken, sessionId });
 	} catch (err) {
 		res.status(401).json({ message: err.message });
@@ -61,7 +64,6 @@ const refreshAccessToken = async (req, res) => {
 
 const logout = async (req, res) => {
 	try {
-
 		console.log(req.user);
 		await AuthService.logout(req.user.id, req.user.sessionId);
 		res.json({ message: "Logout successfully" });
@@ -89,7 +91,7 @@ const verifyOTPResetPassword = async (req, res) => {
 	} catch (err) {
 		res.status(400).json({ message: err.message });
 	}
-}
+};
 
 const resetPassword = async (req, res) => {
 	try {
@@ -102,9 +104,11 @@ const resetPassword = async (req, res) => {
 
 const changePassword = async (req, res) => {
 	try {
-
 		// console.log(req.user);
-		const result = await AuthService.changePassword({ userId: req.user.id, ...req.body });
+		const result = await AuthService.changePassword({
+			userId: req.user.id,
+			...req.body,
+		});
 		res.json(result);
 	} catch (err) {
 		res.status(400).json({ message: err.message });
@@ -120,7 +124,6 @@ const logoutAllSessions = async (req, res) => {
 	}
 };
 
-
 async function googleTokenLogin(req, res) {
 	const { idToken } = req.body;
 
@@ -129,7 +132,8 @@ async function googleTokenLogin(req, res) {
 	}
 
 	try {
-		const { accessToken, refreshToken, sessionId } = await AuthService.verifyGoogleTokenId(idToken);
+		const { accessToken, refreshToken, sessionId } =
+			await AuthService.verifyGoogleTokenId(idToken);
 		res.status(200).json({ accessToken, refreshToken, sessionId });
 	} catch (error) {
 		console.error("Google login error:", error);

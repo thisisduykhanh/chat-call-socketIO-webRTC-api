@@ -2,18 +2,17 @@ const express = require("express");
 
 const AuthCtrl = require("@/controllers/auth.controller");
 
-
 const router = express.Router();
 
-const { verifyFirebaseToken, verifyAccessToken } = require("@/middleware/auth.middleware");
-
+const {
+	verifyFirebaseToken,
+	verifyAccessToken,
+} = require("@/middleware/auth.middleware");
 
 router.get("/me", verifyAccessToken, AuthCtrl.getMe);
 
 // POST /api/auth/google/token
-router.post("/login/google", AuthCtrl.googleTokenLogin); 
-
-
+router.post("/login/google", AuthCtrl.googleTokenLogin);
 
 router.post("/register", AuthCtrl.register);
 router.post("/verify/email", AuthCtrl.verifyEmail);

@@ -1,4 +1,4 @@
-const {Redis} = require("ioredis");
+const { Redis } = require("ioredis");
 const config = require("./index");
 
 const redisClient = new Redis({
@@ -46,20 +46,18 @@ redisClient.on("ready", () => {
 // 	}
 // };
 
-
 const setAsync = async (key, value, seconds) => {
 	try {
-	  if (typeof seconds === 'number' && seconds > 0) {
-		await redisClient.set(key, JSON.stringify(value), "EX", seconds);
-	  } else {
-		await redisClient.set(key, JSON.stringify(value));
-	  }
+		if (typeof seconds === "number" && seconds > 0) {
+			await redisClient.set(key, JSON.stringify(value), "EX", seconds);
+		} else {
+			await redisClient.set(key, JSON.stringify(value));
+		}
 	} catch (err) {
-	  console.error(`Error setting value in Redis for key ${key}:`, err);
-	  throw err;
+		console.error(`Error setting value in Redis for key ${key}:`, err);
+		throw err;
 	}
-  };
-
+};
 
 // /**
 //  * Set a value in Redis with an expiration time.
@@ -152,33 +150,38 @@ const getKeysAsync = async (key) => {
 	return await redisClient.keys(key);
 };
 
-
 const delKeysAsync = async (pattern) => {
-    try {
-        let cursor = '0';
-        let keysToDelete = [];
+	try {
+		let cursor = "0";
+		const keysToDelete = [];
 
-        do {
-            const reply = await redisClient.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
-            cursor = reply[0];
-            const keys = reply[1];
+		do {
+			const reply = await redisClient.scan(
+				cursor,
+				"MATCH",
+				pattern,
+				"COUNT",
+				100,
+			);
+			cursor = reply[0];
+			const keys = reply[1];
 
-            if (keys.length > 0) {
-                keysToDelete.push(...keys);
-            }
-        } while (cursor !== '0');
+			if (keys.length > 0) {
+				keysToDelete.push(...keys);
+			}
+		} while (cursor !== "0");
 
-        if (keysToDelete.length > 0) {
-            const deleted = await redisClient.del(...keysToDelete);
-            console.log(`Deleted ${deleted} keys matching pattern "${pattern}"`);
-            return deleted;
-        }
+		if (keysToDelete.length > 0) {
+			const deleted = await redisClient.del(...keysToDelete);
+			console.log(`Deleted ${deleted} keys matching pattern "${pattern}"`);
+			return deleted;
+		}
 
-        return 0;
-    } catch (err) {
-        console.error(`Failed to delete keys with pattern "${pattern}":`, err);
-        throw err;
-    }
+		return 0;
+	} catch (err) {
+		console.error(`Failed to delete keys with pattern "${pattern}":`, err);
+		throw err;
+	}
 };
 
 const existsAsync = async (key) => {
@@ -191,8 +194,6 @@ const existsAsync = async (key) => {
 	}
 };
 
-
-
 const hSetAsync = async (key, data) => {
 	try {
 		await redisClient.hset(key, data);
@@ -201,11 +202,9 @@ const hSetAsync = async (key, data) => {
 	}
 };
 
-
 const hGetAllAsync = async (key) => {
 	return await redisClient.hgetall(key);
-  };
-  
+};
 
 const sAddAsync = async (key, member) => {
 	try {
@@ -221,7 +220,7 @@ const sCardAsync = async (key) => {
 	} catch (err) {
 		console.error(`Error getting cardinality of set ${key}:`, err);
 	}
-}
+};
 
 const sMembersAsync = async (key) => {
 	try {
@@ -239,10 +238,10 @@ const sRemAsync = async (key, member) => {
 	}
 };
 
-
 const saveInfoCallAsync = async ({ callKey, participantsKey, userId }) => {
 	try {
-		await redisClient.multi()
+		await redisClient
+			.multi()
 			.hset(callKey, {
 				initiator: userId,
 				startTime: new Date().toISOString(),
@@ -257,8 +256,6 @@ const saveInfoCallAsync = async ({ callKey, participantsKey, userId }) => {
 		console.error("Error saving call info:", err);
 	}
 };
-
-
 
 module.exports = {
 	setAsync,
@@ -277,5 +274,5 @@ module.exports = {
 	sCardAsync,
 	sMembersAsync,
 	sRemAsync,
-	hGetAllAsync
+	hGetAllAsync,
 };

@@ -1,15 +1,12 @@
 const multer = require("multer");
 const cloudinary = require("~/config/cloudinary");
-const { uploadFileToFirebaseStorage } = require("~/utils/firebaseStorage.util"); 
+const { uploadFileToFirebaseStorage } = require("~/utils/firebaseStorage.util");
 // const path = require("node:path");
 // const fs = require("node:fs");
 require("dotenv").config();
 const streamifier = require("streamifier");
 
-
-
 // Lưu file trên Cloudinary
-
 
 // Lưu file trên ổ đĩa
 // const localStorage = multer.diskStorage({
@@ -77,64 +74,65 @@ const fileFilter = (req, file, cb) => {
 // 	});
 // };
 
-
 const upload = multer({
 	storage: multer.memoryStorage(),
 	limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
-	fileFilter: fileFilter
-  });
+	fileFilter: fileFilter,
+});
 
-
-  const uploadMiddleware = () => {
+const uploadMiddleware = () => {
 	return (req, res, next) => {
-	  upload.array("files", 5)(req, res, async (err) => {
-		if (err) {
-		  return res.status(400).json({ message: err.message });
-		}
-  
-		if (!req.files || req.files.length === 0) {
-		  return res.status(400).json({ message: 'No files uploaded or file type not allowed' });
-		}
-  
-		try {
-		  const uploadResults = await Promise.all(req.files.map(file => {
-			const fileType = file.mimetype.split("/")[0];
-  
-			if (fileType === "image" || fileType === "video") {
-			  return new Promise((resolve, reject) => {
-				const uploadStream = cloudinary.uploader.upload_stream(
-				  {
-					folder: "uploads",
-					resource_type: "auto",
-				  },
-				  (error, result) => {
-					if (error) {
-					  reject(error);
-					} else {
-					  resolve({
-						type: "cloudinary",
-						url: result.secure_url,
-						resource_type: result.resource_type,
-					  });
-					}
-				  }
-				);
-				streamifier.createReadStream(file.buffer).pipe(uploadStream);
-			  });
-			} else {
-			  // Document file
-			  return uploadFileToFirebaseStorage(file);
+		upload.array("files", 5)(req, res, async (err) => {
+			if (err) {
+				return res.status(400).json({ message: err.message });
 			}
-		  }));
-  
-		  req.uploadedFiles = uploadResults; // Gán vào req để dùng ở controller
-		  next();
-		} catch (error) {
-		  console.error(error);
-		  return res.status(500).json({ message: error.message });
-		}
-	  });
+
+			if (!req.files || req.files.length === 0) {
+				return res
+					.status(400)
+					.json({ message: "No files uploaded or file type not allowed" });
+			}
+
+			try {
+				const uploadResults = await Promise.all(
+					req.files.map((file) => {
+						const fileType = file.mimetype.split("/")[0];
+
+						if (fileType === "image" || fileType === "video") {
+							return new Promise((resolve, reject) => {
+								const uploadStream = cloudinary.uploader.upload_stream(
+									{
+										folder: "uploads",
+										resource_type: "auto",
+									},
+									(error, result) => {
+										if (error) {
+											reject(error);
+										} else {
+											resolve({
+												type: "cloudinary",
+												url: result.secure_url,
+												resource_type: result.resource_type,
+											});
+										}
+									},
+								);
+								streamifier.createReadStream(file.buffer).pipe(uploadStream);
+							});
+						}
+						// Document file
+						return uploadFileToFirebaseStorage(file);
+					}),
+				);
+
+				req.uploadedFiles = uploadResults; // Gán vào req để dùng ở controller
+				next();
+			} catch (error) {
+				console.error(error);
+				return res.status(500).json({ message: error.message });
+			}
+		});
 	};
-  };
+};
 
 module.exports = { uploadMiddleware };
