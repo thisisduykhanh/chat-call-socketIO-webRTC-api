@@ -10,6 +10,13 @@ module.exports = (socket, io) => {
         console.log(`User ${socket.id} joined conversation ${conversationId}`);
     });
 
+    // socket.on("join-conversation", ({ conversationId }) => {
+    //     socket.join(conversationId);
+    //     socket.conversationId = conversationId;
+    //     io.to(conversationId).emit("user-connected", { userId: socket.user.id });
+    //     console.log(`${socket.user.id} joined conversation ${conversationId}`);
+    // });
+
     socket.on("receiver:join", (conversationId) => {
         socket.join(conversationId);
         console.log(

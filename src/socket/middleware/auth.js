@@ -3,10 +3,11 @@ const CreateError = require("http-errors");
 const { getAsync } = require("~/config/redis");
 
 const socketAuth = async (socket, next) => {
-    const authHeader = socket.handshake.headers["authorization"];
+    const authHeader = socket.handshake.headers["authorization"] || socket.handshake.headers["Authorization"];
+
     // console.log("🔐 Authorization header:", authHeader);
 
-    if (!authHeader) {
+    if (!authHeader || authHeader.trim() === "") {
         return next(CreateError(401, "Authentication error: Token missing"));
     }
 

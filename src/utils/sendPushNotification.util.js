@@ -107,6 +107,7 @@ const sendCallNotificationMulticast = async (toUserIds, message) => {
                 caller_id: message.callerId,
                 conversation_id: message.conversationId,
                 avatar_url: message.avatarUrl || '',
+                call_type: message.callType || 'voice',
             },
             android: {
                 priority: 'high',

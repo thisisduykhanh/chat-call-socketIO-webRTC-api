@@ -1,66 +1,556 @@
-const calls = new Map();
+const ConversationService = require("~/api/services/conversation.service");
+
+const { activeCalls } = require("~/socket/state/callState");
+
+const {
+    sendCallNotificationMulticast,
+} = require("~/utils/sendPushNotification.util");
+
+
 const MAX_PARTICIPANTS = 8;
 
+
+const {
+    setAsync,
+    getAsync,
+    existsAsync,
+    saveInfoCallAsync,
+    delAsync,
+    hGetAllAsync,
+    sCardAsync,
+    sAddAsync,
+    sMembersAsync,
+    sRemAsync,
+} = require("~/config/redis");
+
 module.exports = (socket, io) => {
-    // Khởi tạo cuộc gọi
-  socket.on('start-call', ({ conversationId }) => {
-    if (!calls.has(conversationId)) {
-      calls.set(conversationId, { initiator: socket.userId, participants: new Set([socket.userId]) });
-      socket.to(conversationId).emit('call-incoming', {
-        initiatorId: socket.userId,
-        conversationId,
-      });
-      console.log(`${socket.userId} started call in ${conversationId}`);
-    } else {
-      socket.emit('call-error', { message: 'A call is already in progress in this conversation.' });
-    }
+
+  const userId = socket.user.id;
+
+    socket.on("audio-stream-received", (data) => {
+      console.log(
+          `Audio stream received by ${data.userId} in conversation ${data.conversationId}`
+      );
   });
 
-  // Chấp nhận cuộc gọi
-  socket.on('accept-call', ({ conversationId, toUserId }) => {
-    const call = calls.get(conversationId);
-    if (!call) {
-      socket.emit('call-error', { message: 'No active call in this conversation.' });
-      return;
-    }
-    if (call.participants.size >= MAX_PARTICIPANTS) {
-      socket.emit('call-error', { message: 'Call is full (max 8 participants).' });
-      return;
-    }
-    call.participants.add(socket.userId);
-    io.to(conversationId).emit('user-joined-call', { userId: socket.userId });
-    socket.emit('call-accepted', { toUserId });
-    console.log(`${socket.userId} accepted call in ${conversationId}`);
+  // Khởi tạo cuộc gọi
+  socket.on("start-call", async ({ conversationId, callType }) => {
+      const callKey = `call:${conversationId}`;
+      const participantsKey = `${callKey}:participants`;
+
+      if (await existsAsync(callKey)) {
+          return socket.emit("call-error", {
+              message: "A call is already in progress.",
+          });
+      }
+
+      // Người gọi join callKey và thêm vào danh sách participants
+      socket.join(callKey);
+      socket.callKey = callKey;
+      await sAddAsync(participantsKey, userId);
+
+      await saveInfoCallAsync({
+          callKey,
+          participantsKey,
+          userId,
+          callType: callType || "voice",
+      });
+
+      try {
+          const participants =
+              await ConversationService.getAllParticipants(
+                  conversationId
+              );
+          const caller = participants.find(
+              (p) => p._id.toString() === userId
+          );
+
+          const callerName = caller
+              ? caller.name || caller.username
+              : "Unknown";
+          const callerAvatar = caller?.avatarUrl || "";
+
+          const participantIds = participants
+              .map((p) => p._id.toString())
+              .filter((id) => id !== userId);
+
+          let isAnyParticipantOnline = false;
+
+          // Gửi call-incoming cho người online
+          for (const participantId of participantIds) {
+              const isOnline = await getAsync(
+                  `user:${participantId}:status`
+              );
+              if (isOnline) {
+                  isAnyParticipantOnline = true;
+                  socket.to(participantId).emit("call-incoming", {
+                      initiatorId: userId,
+                      conversationId,
+                      callId: callKey,
+                      callType,
+                  });
+              }
+          }
+
+          // Thông báo cho caller rằng call-incoming đã được gửi
+          if (isAnyParticipantOnline) {
+              socket.emit("call-incoming-sent", { conversationId });
+              console.log(
+                  `Sent call-incoming-sent to caller ${userId} for conversation ${conversationId}`
+              );
+          }
+
+          console.log(`call type: ${callType}`);
+
+          // Gửi thông báo push cho tất cả người tham gia
+          await sendCallNotificationMulticast(participantIds, {
+              title: `Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`,
+              body: `Call from ${callerName}`,
+              callId: callKey,
+              callerName,
+              callerId: userId,
+              conversationId,
+              avatarUrl: callerAvatar,
+              userId,
+              callType,
+          });
+
+          console.log(`📞 ${userId} started call in ${conversationId}`);
+      } catch (err) {
+          socket.emit("call-error", {
+              message: "Failed to start call: Conversation not found",
+          });
+          await delAsync(callKey);
+          await delAsync(participantsKey);
+          console.error(
+              `Error starting call in ${conversationId}: ${err.message}`
+          );
+          return;
+      }
+
+      const timeout = setTimeout(async () => {
+          const stillExists = await existsAsync(callKey);
+          if (stillExists) {
+              const endTime = new Date();
+              const callData = await hGetAllAsync(callKey);
+              const duration = Math.round(
+                  (endTime - new Date(callData.startTime)) / 1000
+              );
+              await delAsync(callKey);
+              await delAsync(participantsKey);
+              activeCalls.delete(conversationId);
+
+              let conversationMembers;
+              try {
+                  conversationMembers =
+                      await ConversationService.getAllParticipants(
+                          conversationId
+                      );
+              } catch (err) {
+                  console.error(
+                      `Error fetching conversation members: ${err.message}`
+                  );
+                  socket.emit("call-error", {
+                      message: "Failed to fetch conversation details",
+                  });
+                  return;
+              }
+              const isOneToOne = conversationMembers.length === 2;
+
+              try {
+                  const message = {
+                      id: Date.now().toString(),
+                      conversation_id: conversationId,
+                      sender_id: userId,
+                      content: `Missed ${callType === 'video' ? 'video' : 'voice'} call (${formatDuration(duration)})`,
+                      timestamp: endTime.getTime(),
+                      status: "sent",
+                      type: "call",
+                      call_data: JSON.stringify({
+                          callType: callType || 'voice',
+                          duration,
+                          participants: [userId],
+                      }),
+                  };
+                  await setAsync(
+                      `message:${conversationId}:${message.id}`,
+                      JSON.stringify(message),
+                      604800
+                  );
+                  io.to(conversationId).emit(
+                      "call-message-saved",
+                      message
+                  );
+                  console.log(
+                      `Saved missed call message for conversation ${conversationId}`
+                  );
+              } catch (err) {
+                  console.error(
+                      `Error saving missed call message: ${err.message}`
+                  );
+              }
+
+              
+              for (const participant of conversationMembers) {
+                  const participantId = participant._id.toString();
+                  if (participantId !== userId) {
+                      io.to(participantId).emit("call-ended", {
+                          userId,
+                          conversationId,
+                          callId: callKey,
+                          reason: "timeout",
+                      });
+                      console.log(
+                          `Sent call-ended to participant ${participantId} for timeout in ${conversationId}`
+                      );
+                  }
+              }
+              
+              // Rời phòng callKey cho tất cả socket
+              const room = io.sockets.adapter.rooms.get(callKey);
+              if (room) {
+                  for (const socketId of room) {
+                      const socket = io.sockets.sockets.get(socketId);
+                      if (socket) {
+                          socket.leave(callKey);
+                          socket.callKey = null;
+                          console.log(`Socket ${socketId} left callKey ${callKey}`);
+                      }
+                  }
+              }
+              console.log(
+                  `Call for conversation ${conversationId} ended due to timeout.`
+              );
+          }
+      }, 60000);
+
+      activeCalls.set(conversationId, timeout);
+  });
+
+  // Chấp nhận cuộc gọi và tham gia callKey
+  socket.on("accept-call", async ({ conversationId, toUserId }) => {
+      if (!toUserId) {
+          socket.emit("call-error", { message: "Missing userId." });
+          return;
+      }
+
+      const callKey = `call:${conversationId}`;
+      const participantsKey = `call:${conversationId}:participants`;
+
+      if (!(await existsAsync(callKey))) {
+          socket.emit("call-error", {
+              message: "No active call in this conversation.",
+          });
+          return;
+      }
+
+      const participantCount = await sCardAsync(participantsKey);
+      if (participantCount >= MAX_PARTICIPANTS) {
+          socket.emit("call-error", {
+              message: "Call is full (max 8 participants).",
+          });
+          return;
+      }
+
+      // Tham gia callKey thay vì conversationId
+      socket.join(callKey);
+      socket.callKey = callKey;
+
+      await sAddAsync(participantsKey, userId);
+
+      // Hủy timer khi cuộc gọi được chấp nhận
+      const timeout = activeCalls.get(conversationId);
+      if (timeout) {
+          clearTimeout(timeout);
+          activeCalls.delete(conversationId);
+          console.log(`Cancelled timeout for call ${conversationId}`);
+      }
+
+      io.to(callKey).emit("user-joined-call", { userId });
+      io.to(toUserId).emit("call-accepted", { toUserId: userId });
+      console.log(`✅ ${userId} accepted call in ${conversationId}`);
   });
 
   // Từ chối cuộc gọi
-  socket.on('reject-call', ({ conversationId }) => {
-    io.to(conversationId).emit('call-rejected', { userId: socket.userId });
-    console.log(`${socket.userId} rejected call in ${conversationId}`);
+  socket.on("reject-call", ({ conversationId }) => {
+      io.to(`call:${conversationId}`).emit("call-rejected", { userId });
+      console.log(`❌ ${userId} rejected call in ${conversationId}`);
+  });
+
+  // Kết thúc cuộc gọi
+  socket.on("end-call", async ({ conversationId }) => {
+      const callKey = `call:${conversationId}`;
+      const participantsKey = `call:${conversationId}:participants`;
+
+      if (!(await existsAsync(callKey))) return;
+
+
+      const timeout = activeCalls.get(conversationId);
+      if (timeout) {
+          clearTimeout(timeout);
+          activeCalls.delete(conversationId);
+          console.log(`Cancelled timeout for call ${conversationId}`);
+      }
+
+      const endTime = new Date();
+      const callData = await hGetAllAsync(callKey);
+      const startTime = new Date(callData.startTime);
+      const duration = Math.round((endTime - startTime) / 1000);
+      const callType = callData.callType || 'voice';
+
+      const participants = await sMembersAsync(participantsKey);
+
+      let conversationMembers;
+      try {
+          conversationMembers =
+              await ConversationService.getAllParticipants(
+                  conversationId
+              );
+      } catch (err) {
+          console.error(
+              `Error fetching conversation members: ${err.message}`
+          );
+          socket.emit("call-error", {
+              message: "Failed to fetch conversation details",
+          });
+          return;
+      }
+
+      const room = io.sockets.adapter.rooms.get(callKey);
+      const count = room ? room.size : 0;
+      
+
+      const isOneToOne = conversationMembers.length === 2;
+
+      if(count === 1){
+
+          await delAsync(callKey);
+          await delAsync(participantsKey);
+
+          console.log("count 1 nef hihi")
+
+          try {
+              const message = {
+                  id: Date.now().toString(),
+                  conversation_id: conversationId,
+                  sender_id: userId,
+                  content: `Missed ${callType === 'video' ? 'video' : 'voice'} call (${formatDuration(duration)})`,
+                  timestamp: endTime.getTime(),
+                  status: "sent",
+                  type: "call",
+                  call_data: JSON.stringify({
+                      callType,
+                      duration,
+                      participants,
+                  }),
+              };
+              await setAsync(
+                  `message:${conversationId}:${message.id}`,
+                  JSON.stringify(message),
+                  604800
+              );
+              io.to(conversationId).emit("call-message-saved", message);
+              console.log(
+                  `Saved missed call message for conversation ${conversationId}`
+              );
+          } catch (err) {
+              console.error(`Error saving call message: ${err.message}`);
+          }
+
+          for (const participant of conversationMembers) {
+              const participantId = participant._id.toString();
+              console.log(`Participant ID: ${participantId}`);
+              if (participantId !== userId) {
+                  io.to(participantId).emit("call-ended", {
+                      userId,
+                      conversationId,
+                      callId: callKey,
+                      reason: "user-ended",
+                  });
+                  console.log(
+                      `🛑 ${participantId} ended call in ${callKey}`
+                  );
+              }
+          }
+          // Gửi call-ended đến caller
+          io.to(callKey).emit("call-ended", {
+              userId,
+              conversationId,
+              reason: "user-ended",
+          });
+          // Rời phòng callKey
+          socket.leave(callKey);
+          socket.callKey = null;
+          console.log(`user ${userId} left callKey ${callKey}`);
+          return;
+
+      }
+      else if (isOneToOne) {
+          await delAsync(callKey);
+          await delAsync(participantsKey);
+          activeCalls.delete(conversationId);
+
+          try {
+              const message = {
+                  id: Date.now().toString(),
+                  conversation_id: conversationId,
+                  sender_id: userId,
+                  content: `${callType === 'video' ? 'Video' : 'Voice'} call ended (${formatDuration(duration)})`,
+                  timestamp: endTime.getTime(),
+                  status: "sent",
+                  type: "call",
+                  call_data: JSON.stringify({
+                      callType,
+                      duration,
+                      participants,
+                  }),
+              };
+              await setAsync(
+                  `message:${conversationId}:${message.id}`,
+                  JSON.stringify(message),
+                  604800
+              );
+              io.to(conversationId).emit("call-message-saved", message);
+              console.log(
+                  `Saved call message for conversation ${conversationId}`
+              );
+          } catch (err) {
+              console.error(`Error saving call message: ${err.message}`);
+          }
+
+          io.to(callKey).emit("call-ended", {
+              userId,
+              conversationId,
+              reason: "user-ended",
+          });
+          console.log(`🛑 ${userId} ended 1:1 call in ${conversationId}`);
+      } else {
+          await sRemAsync(participantsKey, userId);
+          const remainingParticipants = await sCardAsync(participantsKey);
+
+          if (remainingParticipants === 0) {
+              await delAsync(callKey);
+              await delAsync(participantsKey);
+              activeCalls.delete(conversationId);
+
+              try {
+                  const message = {
+                      id: Date.now().toString(),
+                      conversation_id: conversationId,
+                      sender_id: userId,
+                      content: `${callType === 'video' ? 'Video' : 'Voice'} call ended (${formatDuration(duration)})`,
+                      timestamp: endTime.getTime(),
+                      status: "sent",
+                      type: "call",
+                      call_data: JSON.stringify({
+                          callType,
+                          duration,
+                          participants,
+                      }),
+                  };
+                  await setAsync(
+                      `message:${conversationId}:${message.id}`,
+                      JSON.stringify(message),
+                      604800
+                  );
+                  io.to(conversationId).emit(
+                      "call-message-saved",
+                      message
+                  );
+                  console.log(
+                      `Saved call message for conversation ${conversationId}`
+                  );
+              } catch (err) {
+                  console.error(
+                      `Error saving call message: ${err.message}`
+                  );
+              }
+
+              io.to(callKey).emit("call-ended", {
+                  userId,
+                  conversationId,
+                  reason: "no-participants",
+              });
+              console.log(
+                  `🛑 Call in ${conversationId} ended due to no participants`
+              );
+          } else {
+              io.to(callKey).emit("user-left-call", {
+                  userId,
+                  conversationId,
+              });
+              console.log(
+                  `🚶 ${userId} left group call in ${conversationId}`
+              );
+          }
+      }
+
+      // Rời phòng callKey cho tất cả socket
+      if (room) {
+          for (const socketId of room) {
+              const socket = io.sockets.sockets.get(socketId);
+              if (socket) {
+                  socket.leave(callKey);
+                  socket.callKey = null;
+                  console.log(`Socket ${socketId} left callKey ${callKey}`);
+              }
+          }
+      }
   });
 
   // Gửi offer WebRTC
-  socket.on('call-offer', ({ toUserId, offer }) => {
-    socket.to(toUserId).emit('call-offer', {
-      fromUserId: socket.userId,
-      offer,
-    });
+  socket.on("call-offer", ({ toUserId, offer }) => {
+      socket.to(toUserId).emit("call-offer", {
+          fromUserId: userId,
+          offer,
+      });
+      console.log(
+          `Sent call-offer from ${userId} to ${toUserId}: ${JSON.stringify(
+              offer
+          )}`
+      );
   });
 
   // Gửi answer WebRTC
-  socket.on('call-answer', ({ toUserId, answer }) => {
-    socket.to(toUserId).emit('call-answer', {
-      fromUserId: socket.userId,
-      answer,
-    });
+  socket.on("call-answer", ({ toUserId, answer }) => {
+      console.log(
+          `Sent call-answer from ${userId} to ${toUserId}: ${JSON.stringify(
+              answer
+          )}`
+      );
+      socket.to(toUserId).emit("call-answer", {
+          fromUserId: userId,
+          answer,
+      });
   });
 
   // Gửi ICE candidate
-  socket.on('ice-candidate', ({ toUserId, candidate }) => {
-    socket.to(toUserId).emit('ice-candidate', {
-      fromUserId: socket.userId,
-      candidate,
-    });
+  socket.on("ice-candidate", ({ toUserId, candidate }) => {
+      socket.to(toUserId).emit("ice-candidate", {
+          fromUserId: userId,
+          candidate,
+      });
+      console.log(
+          `Sent ICE candidate from ${userId} to ${toUserId}: ${JSON.stringify(
+              candidate
+          )}`
+      );
   });
 
+
+
 };
+
+// Hàm định dạng thời gian
+function formatDuration(seconds) {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  const parts = [];
+  if (hrs > 0) parts.push(hrs.toString().padStart(1, "0"));
+  parts.push(mins.toString().padStart(2, "0"));
+  parts.push(secs.toString().padStart(2, "0"));
+
+  return parts.join(":");
+}

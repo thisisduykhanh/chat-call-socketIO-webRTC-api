@@ -1,7 +1,7 @@
 const app = require("~/app");
 
 const port = process.env.PORT || 3000;
-const hostName = process.env.HOST_NAME || "localhost";
+const hostName = process.env.HOST_NAME || "0.0.0.0";
 const version = process.env.VERSION || "v1";
 
 const handleExit = (signal) => {
