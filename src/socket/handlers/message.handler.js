@@ -4,6 +4,10 @@ const pinnedMessageService = require("@/services/pinned.service");
 // const reactionService = require('@/services/reaction.service');
 const { emitToConversation } = require("~/socket/utils/socket.helpers");
 
+const {sendMulticastNotification} = require("~/utils/sendPushNotification.util");
+
+const ConversationService = require("~/api/services/conversation.service");
+
 module.exports = (socket, io) => {
     socket.on("conversation:join", (conversationId) => {
         socket.join(conversationId);
@@ -44,7 +48,7 @@ module.exports = (socket, io) => {
                         {
                             buffer: Buffer.from(files),
                             mimetype:
-                                type === "image" ? "image/jpeg" : "video/mp4", 
+                                type === "image" ? "image/jpeg" : "video/mp4",
                         },
                     ];
                 }
@@ -54,7 +58,7 @@ module.exports = (socket, io) => {
                     receiverId,
                     conversationId,
                     content,
-                    files:filesToUpload,
+                    files: filesToUpload,
                     type,
                     location,
                     ...rest,
@@ -62,13 +66,12 @@ module.exports = (socket, io) => {
 
                 console.log("Message sent:", msg);
 
-                emitToConversation({
+                await emitToConversation({
                     io,
                     socket,
-                    conversationId: msg.conversation.toString(),
-                    receiverId: msg.receiver,
                     msg,
                     tempId: tempId,
+                
                 });
             } catch (err) {
                 console.error("Send message error:", err.message);
@@ -159,5 +162,56 @@ module.exports = (socket, io) => {
         } catch (err) {
             socket.emit("error", "Không thể lấy tin nhắn đã ghim");
         }
+    });
+
+    socket.on("message:typing", async ({ conversationId }) => {
+        // Broadcast to other users in the conversation
+
+        const participants = await ConversationService.getAllParticipants(
+            conversationId
+        );
+
+        for (const participant of participants) {
+            const participantId = participant._id.toString();
+            if (participantId !== socket.user.id) {
+                io.to(participantId).emit("message:typing", {
+                    userId: socket.user.id,
+                    conversationId,
+                });
+                console.log(
+                    `Sent message to participant ${participantId} in conversation ${conversationId}`
+                );
+            }
+        }
+
+        console.log(
+            `User ${socket.user.id} is typing in conversation ${conversationId}`
+        );
+    });
+
+    // Handle stopTyping event
+    socket.on("message:stopTyping", async ({ conversationId }) => {
+        // Broadcast to other users in the conversation
+
+        const participants = await ConversationService.getAllParticipants(
+            conversationId
+        );
+
+        for (const participant of participants) {
+            const participantId = participant._id.toString();
+            if (participantId !== socket.user.id) {
+                io.to(participantId).emit("message:stopTyping", {
+                    userId: socket.user.id,
+                    conversationId,
+                });
+                console.log(
+                    `Sent message to participant ${participantId} in conversation ${conversationId}`
+                );
+            }
+        }
+
+        console.log(
+            `User ${socket.user.id} stopped typing in conversation ${conversationId}`
+        );
     });
 };

@@ -1,79 +1,8 @@
 const admin = require("~/config/firebase-admin");
 const { getAsync, delAsync } = require("~/config/redis");
 
-const sendPushNotification = async (toUserId, message) => {
-    try {
-        const userToken = await getAsync(`user:${toUserId}:fcmToken`);
-        if (userToken) {
-            const response = await admin.messaging().send({
-                token: userToken,
-                notification: {
-                    title: message.title,
-                    body: message.body,
-                },
-            });
-            console.log(`Push notification sent to user ${toUserId}: ${response}`);
-        } else {
-            console.log(`User ${toUserId} not registered for push notifications`);
-        }
-    } catch (error) {
-        console.error(`Error sending push notification to user ${toUserId}:`, error);
-    }
-};
 
-const sendCallNotification = async (toUserId, message) => {
-    try {
-        const userToken = await getAsync(`user:${toUserId}:fcmToken`);
-        if (!userToken) {
-            console.log(`User ${toUserId} not registered for push notifications`);
-            return;
-        }
-
-        const callData = {
-            notification: {
-                title: message.title,
-                body: message.body,
-            },
-            data: {
-                type: 'call',
-                call_id: message.callId,
-                caller_name: message.callerName,
-                caller_id: message.callerId,
-                user_id: message.userId,
-                conversation_id: message.conversationId,
-                avatar_url: message.avatarUrl || '',
-            },
-            token: userToken,
-            android: {
-                priority: 'high',
-                notification: {
-                    sound: 'call_ringtone',
-                    channelId: 'call_notifications',
-                },
-            },
-            apns: {
-                payload: {
-                    aps: {
-                        sound: 'call_ringtone.wav',
-                        'mutable-content': 1,
-                    },
-                },
-            },
-        };
-
-        const response = await admin.messaging().send(callData);
-        console.log(`Push notification sent to user ${toUserId} for call ${message.callId}: ${response}`);
-    } catch (error) {
-        console.error(`Error sending push notification to user ${toUserId} for call ${message.callId}:`, error);
-        if (error.code === 'messaging/invalid-registration-token' || 
-            error.code === 'messaging/registration-token-not-registered') {
-            await delAsync(`user:${toUserId}:fcmToken`);
-            console.log(`Removed invalid fcmToken for user ${toUserId}`);
-        }
-    }
-};
-
-const sendCallNotificationMulticast = async (toUserIds, message) => {
+const sendMulticastNotification = async (toUserIds, message) => {
     try {
         const tokens = await Promise.all(
             toUserIds.map(async (id) => ({
@@ -95,26 +24,36 @@ const sendCallNotificationMulticast = async (toUserIds, message) => {
         }
 
 
-        const callData = {
-            notification: {
-                title: message.title,
-                body: message.body,
-            },
+        console.log(`Message: ${JSON.stringify(message)}`);        
+        console.log(`Notifying ${toUserIds.length} users`);
+
+
+
+        const isCall = message.type === 'call';
+
+        const baseNotification  = {
+            ...(isCall
+                ? {} // Nếu là cuộc gọi thì không gửi notification
+                : {
+                    notification: {
+                      title: message.title,
+                      body: message.body,
+                    },
+                  }),
             data: {
-                type: 'call',
-                call_id: message.callId,
-                caller_name: message.callerName,
-                caller_id: message.callerId,
-                conversation_id: message.conversationId,
-                avatar_url: message.avatarUrl || '',
-                call_type: message.callType || 'voice',
+                type: message.type,
+                ...(message.data || {}),
             },
             android: {
                 priority: 'high',
-                notification: {
-                    sound: 'call_ringtone',
-                    channelId: 'call_notifications',
-                },
+                ...(isCall
+                    ? {}
+                    : {
+                        notification: {
+                            sound: 'call_ringtone',
+                            channelId: 'call_notifications',
+                        },
+                    }),
             },
             apns: {
                 payload: {
@@ -128,12 +67,12 @@ const sendCallNotificationMulticast = async (toUserIds, message) => {
 
         // Dùng sendEachForMulticast cho phiên bản mới
         const messages = validTokens.map(token => ({
-            ...callData,
+            ...baseNotification ,
             token,
         }));
 
         const response = await admin.messaging().sendEach(messages);
-        console.log(`Multicast push notification sent for call ${message.callId}:`, {
+        console.log(`Multicast push notification sent for ${message}`, {
             successCount: response.successCount,
             failureCount: response.failureCount,
             responses: response.responses,
@@ -160,8 +99,6 @@ const sendCallNotificationMulticast = async (toUserIds, message) => {
 
 
 module.exports = {
-    sendPushNotification,
-    sendCallNotification,
 
-    sendCallNotificationMulticast,
+    sendMulticastNotification,
 };

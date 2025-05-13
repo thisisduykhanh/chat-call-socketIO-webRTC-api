@@ -28,13 +28,29 @@ const MessageSchema = new mongoose.Schema(
                 "text",
                 "image",
                 "video",
-                "audio",
+                "call",
                 "file",
                 "emoji",
                 "location",
                 "contact",
             ],
             default: "text",
+        },
+        
+        callData: {
+            callType: {
+                type: String,
+                enum: ["voice", "video"],
+                default: "voice",
+            },
+            duration: { type: Number, default: 0 },
+            participants: [
+                {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "User",
+                },
+            ],
+
         },
 
         // Nội dung văn bản, emoji hoặc thông tin liên quan

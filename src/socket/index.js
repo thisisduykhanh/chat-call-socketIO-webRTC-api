@@ -7,6 +7,7 @@ const socketAuth = require("~/socket/middleware/auth");
 const UserService = require("~/api/services/user.service");
 
 const { activeCalls } = require("~/socket/state/callState");
+const {getUsersInPrivateConversations} = require("~/api/services/conversation.service");
 
 
 const {
@@ -45,7 +46,13 @@ module.exports = (app, server) => {
 
         socket.on("ping-online", async () => {
             await setAsync(`user:${userId}:status`, "online", 60);
-            console.log(`User ${userId} status updated to online`);
+            
+            const users = await getUsersInPrivateConversations(userId);
+
+            for (const user of users) {
+                io.to(user._id.toString()).emit('user:online', { userId });
+                console.log(`Emit user ${user._id} status updated to online`);
+            }
         });
 
         // Đăng ký các logic xử lý
@@ -65,6 +72,15 @@ module.exports = (app, server) => {
             try {
                 await UserService.updateLastSeen(userId);
                 await delAsync(`user:${userId}:status`);
+                
+                const relatedUsers = await getUsersInPrivateConversations(userId);
+
+                for (const user of relatedUsers) {
+                io.to(user._id.toString()).emit('user:offline', { userId });
+                console.log(`User ${user._id} status updated to offline`);
+                }
+
+                socket.leave(userId);
             } catch (err) {
                 console.error("Error updating last seen:", err.message);
             }

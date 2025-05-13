@@ -2,8 +2,10 @@ const ConversationService = require("~/api/services/conversation.service");
 
 const { activeCalls } = require("~/socket/state/callState");
 
+const messageService = require("@/services/message.service");
+
 const {
-    sendCallNotificationMulticast,
+    sendMulticastNotification,
 } = require("~/utils/sendPushNotification.util");
 
 
@@ -21,6 +23,8 @@ const {
     sAddAsync,
     sMembersAsync,
     sRemAsync,
+    updateStartTimeAsync
+    
 } = require("~/config/redis");
 
 module.exports = (socket, io) => {
@@ -103,16 +107,18 @@ module.exports = (socket, io) => {
           console.log(`call type: ${callType}`);
 
           // Gửi thông báo push cho tất cả người tham gia
-          await sendCallNotificationMulticast(participantIds, {
-              title: `Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`,
-              body: `Call from ${callerName}`,
-              callId: callKey,
-              callerName,
-              callerId: userId,
-              conversationId,
-              avatarUrl: callerAvatar,
-              userId,
-              callType,
+          await sendMulticastNotification(participantIds, {
+                type: "call",
+                title: `Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`,
+                body: `Call from ${callerName}`,
+                data: {
+                    call_id: callKey,
+                    caller_name: callerName,
+                    caller_id: userId,
+                    conversation_id: conversationId,
+                    avatar_url: callerAvatar,
+                    call_type: callType || 'voice',
+                }
           });
 
           console.log(`📞 ${userId} started call in ${conversationId}`);
@@ -131,11 +137,7 @@ module.exports = (socket, io) => {
       const timeout = setTimeout(async () => {
           const stillExists = await existsAsync(callKey);
           if (stillExists) {
-              const endTime = new Date();
-              const callData = await hGetAllAsync(callKey);
-              const duration = Math.round(
-                  (endTime - new Date(callData.startTime)) / 1000
-              );
+             
               await delAsync(callKey);
               await delAsync(participantsKey);
               activeCalls.delete(conversationId);
@@ -159,27 +161,24 @@ module.exports = (socket, io) => {
 
               try {
                   const message = {
-                      id: Date.now().toString(),
-                      conversation_id: conversationId,
-                      sender_id: userId,
-                      content: `Missed ${callType === 'video' ? 'video' : 'voice'} call (${formatDuration(duration)})`,
-                      timestamp: endTime.getTime(),
+                      conversationId,
+                      senderId: userId,
+                      content: `Missed ${callType === 'video' ? 'video' : 'voice'} call`,
                       status: "sent",
-                      type: "call",
-                      call_data: JSON.stringify({
-                          callType: callType || 'voice',
-                          duration,
-                          participants: [userId],
-                      }),
-                  };
+                      type: 'call',
+
+                    };          
+                  
+                 const savedMessage = await messageService.createMessage(message);
+
                   await setAsync(
-                      `message:${conversationId}:${message.id}`,
-                      JSON.stringify(message),
+                      `message:${conversationId}:${savedMessage._id}`,
+                      savedMessage,
                       604800
                   );
                   io.to(conversationId).emit(
                       "call-message-saved",
-                      message
+                      savedMessage
                   );
                   console.log(
                       `Saved missed call message for conversation ${conversationId}`
@@ -205,7 +204,11 @@ module.exports = (socket, io) => {
                       );
                   }
               }
-              
+
+              socket.emit("call-ended", {
+                  reason: "timeout",
+              });
+
               // Rời phòng callKey cho tất cả socket
               const room = io.sockets.adapter.rooms.get(callKey);
               if (room) {
@@ -229,6 +232,9 @@ module.exports = (socket, io) => {
 
   // Chấp nhận cuộc gọi và tham gia callKey
   socket.on("accept-call", async ({ conversationId, toUserId }) => {
+
+    console.log(`User ${userId} accepted call in conversation ${conversationId}`);
+
       if (!toUserId) {
           socket.emit("call-error", { message: "Missing userId." });
           return;
@@ -236,6 +242,7 @@ module.exports = (socket, io) => {
 
       const callKey = `call:${conversationId}`;
       const participantsKey = `call:${conversationId}:participants`;
+
 
       if (!(await existsAsync(callKey))) {
           socket.emit("call-error", {
@@ -256,6 +263,7 @@ module.exports = (socket, io) => {
       socket.join(callKey);
       socket.callKey = callKey;
 
+      await updateStartTimeAsync({ callKey });
       await sAddAsync(participantsKey, userId);
 
       // Hủy timer khi cuộc gọi được chấp nhận
@@ -273,12 +281,22 @@ module.exports = (socket, io) => {
 
   // Từ chối cuộc gọi
   socket.on("reject-call", ({ conversationId }) => {
+          const timeout = activeCalls.get(conversationId);
+          if (timeout) {
+              clearTimeout(timeout);
+              activeCalls.delete(conversationId);
+              console.log(`Cancelled timeout for call ${conversationId}`);
+          }
+    
       io.to(`call:${conversationId}`).emit("call-rejected", { userId });
       console.log(`❌ ${userId} rejected call in ${conversationId}`);
   });
 
   // Kết thúc cuộc gọi
   socket.on("end-call", async ({ conversationId }) => {
+        
+    
+
       const callKey = `call:${conversationId}`;
       const participantsKey = `call:${conversationId}:participants`;
 
@@ -327,29 +345,25 @@ module.exports = (socket, io) => {
           await delAsync(callKey);
           await delAsync(participantsKey);
 
-          console.log("count 1 nef hihi")
-
           try {
+        
               const message = {
-                  id: Date.now().toString(),
-                  conversation_id: conversationId,
-                  sender_id: userId,
-                  content: `Missed ${callType === 'video' ? 'video' : 'voice'} call (${formatDuration(duration)})`,
-                  timestamp: endTime.getTime(),
-                  status: "sent",
-                  type: "call",
-                  call_data: JSON.stringify({
-                      callType,
-                      duration,
-                      participants,
-                  }),
-              };
-              await setAsync(
-                  `message:${conversationId}:${message.id}`,
-                  JSON.stringify(message),
+                conversationId,
+                senderId: userId,
+                content: `Missed ${callType === 'video' ? 'video' : 'voice'} call`,
+                timestamp: endTime.getTime(),
+                status: "sent",
+                type: 'call',
+              };  
+
+              const savedMessage = await messageService.createMessage(message);
+                      
+                await setAsync(
+                  `message:${conversationId}:${savedMessage._id}`,
+                  savedMessage,
                   604800
               );
-              io.to(conversationId).emit("call-message-saved", message);
+              io.to(conversationId).emit("call-message-saved", savedMessage);
               console.log(
                   `Saved missed call message for conversation ${conversationId}`
               );
@@ -372,6 +386,9 @@ module.exports = (socket, io) => {
                   );
               }
           }
+
+        
+
           // Gửi call-ended đến caller
           io.to(callKey).emit("call-ended", {
               userId,
@@ -391,26 +408,29 @@ module.exports = (socket, io) => {
           activeCalls.delete(conversationId);
 
           try {
+
               const message = {
-                  id: Date.now().toString(),
-                  conversation_id: conversationId,
-                  sender_id: userId,
-                  content: `${callType === 'video' ? 'Video' : 'Voice'} call ended (${formatDuration(duration)})`,
-                  timestamp: endTime.getTime(),
-                  status: "sent",
-                  type: "call",
-                  call_data: JSON.stringify({
-                      callType,
-                      duration,
-                      participants,
-                  }),
+                conversationId,
+                senderId: userId,
+                content: `${callType === 'video' ? 'Video' : 'Voice'} call (${formatDuration(duration)})`,
+                timestamp: endTime.getTime(),
+                status: "sent",
+                type: 'call',
+                callData: {
+                  callType: callType || 'voice',
+                  duration,
+                  participants,
+                },
               };
+              
+            const savedMessage = await messageService.createMessage(message);
+
               await setAsync(
-                  `message:${conversationId}:${message.id}`,
-                  JSON.stringify(message),
+                  `message:${conversationId}:${savedMessage._id}`,
+                  savedMessage,
                   604800
               );
-              io.to(conversationId).emit("call-message-saved", message);
+              io.to(conversationId).emit("call-message-saved", savedMessage);
               console.log(
                   `Saved call message for conversation ${conversationId}`
               );
@@ -434,28 +454,30 @@ module.exports = (socket, io) => {
               activeCalls.delete(conversationId);
 
               try {
-                  const message = {
-                      id: Date.now().toString(),
-                      conversation_id: conversationId,
-                      sender_id: userId,
-                      content: `${callType === 'video' ? 'Video' : 'Voice'} call ended (${formatDuration(duration)})`,
-                      timestamp: endTime.getTime(),
-                      status: "sent",
-                      type: "call",
-                      call_data: JSON.stringify({
-                          callType,
-                          duration,
-                          participants,
-                      }),
-                  };
+                const message = {
+                    conversationId,
+                    senderId: userId,
+                    content: `${callType === 'video' ? 'Video' : 'Voice'} call (${formatDuration(duration)})`,
+                    timestamp: endTime.getTime(),
+                    status: "sent",
+                    type: 'call',
+                    callData: {
+                      callType: callType || 'voice',
+                      duration,
+                      participants: [userId],
+                    },
+                  };          
+
+                  const savedMessage = await messageService.createMessage(message);
+
                   await setAsync(
-                      `message:${conversationId}:${message.id}`,
-                      JSON.stringify(message),
+                      `message:${conversationId}:${savedMessage._id}`,
+                      savedMessage,
                       604800
                   );
                   io.to(conversationId).emit(
                       "call-message-saved",
-                      message
+                        savedMessage
                   );
                   console.log(
                       `Saved call message for conversation ${conversationId}`

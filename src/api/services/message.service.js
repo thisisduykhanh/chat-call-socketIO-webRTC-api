@@ -27,6 +27,13 @@ class MessageService {
             if (!conversation.participants.includes(senderId)) {
                 throw new CreateError.Forbidden('You are not a participant in this conversation');
               }
+
+              if (conversation.participants.length === 2) {
+                receiverId = conversation.participants.find(
+                  (participant) => participant.toString() !== senderId.toString()
+                );
+            }
+
         } else if (receiverId) {
             console.log("Receiver ID:", receiverId);
             conversation =
@@ -78,6 +85,12 @@ class MessageService {
         // await conversation.save();
 
         await Promise.all([message.save(), conversation.save()]);
+
+        await message.populate([
+            { path: 'receiver', select: 'name avatarUrl' },
+            { path: 'sender', select: 'name avatarUrl' },
+            { path: 'conversation', select: 'name avatar' }
+          ]);
 
         return message;
     }
