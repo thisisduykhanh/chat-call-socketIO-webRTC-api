@@ -1,10 +1,18 @@
 const mongoose = require("mongoose");
 
-const MediaSchema = new mongoose.Schema({
-  fileUrl: { type: String, required: true },
-  mimeType: { type: String },
-  fileName: { type: String },
-  fileSize: { type: Number },
-}, { _id: false });
+const MediaSchema = new mongoose.Schema(
+    {
+        storage: {
+            type: String,
+        },
+        fileId: { type: String, required: true },
+        fileKey: { type: String },
+        fileUrl: { type: String },
+        mimeType: { type: String },
+        fileName: { type: String },
+        fileSize: { type: Number },
+    },
+    { _id: false }
+);
 
 module.exports = MediaSchema;

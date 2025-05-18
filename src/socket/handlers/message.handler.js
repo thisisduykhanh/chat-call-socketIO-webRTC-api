@@ -4,22 +4,36 @@ const pinnedMessageService = require("@/services/pinned.service");
 // const reactionService = require('@/services/reaction.service');
 const { emitToConversation } = require("~/socket/utils/socket.helpers");
 
-const {sendMulticastNotification} = require("~/utils/sendPushNotification.util");
+
 
 const ConversationService = require("~/api/services/conversation.service");
 
 module.exports = (socket, io) => {
-    socket.on("conversation:join", (conversationId) => {
+    socket.on("conversation:join", async (conversationId) => {
         socket.join(conversationId);
-        console.log(`User ${socket.id} joined conversation ${conversationId}`);
+
+        const messages = await ConversationService.markMessagesAsRead(
+            conversationId, socket.user.id);
+
+
+        if (messages.length > 0) {
+            io.to(conversationId).emit("conversation:updateMessageStatus", {messages, conversationId});
+
+            console.log(
+                `Updated message status for conversation ${conversationId} for user ${socket.user.id}`
+            );
+        }
+
+        console.log(`User ${socket.user.id} joined conversation ${conversationId}`);
     });
 
-    // socket.on("join-conversation", ({ conversationId }) => {
-    //     socket.join(conversationId);
-    //     socket.conversationId = conversationId;
-    //     io.to(conversationId).emit("user-connected", { userId: socket.user.id });
-    //     console.log(`${socket.user.id} joined conversation ${conversationId}`);
-    // });
+
+    socket.on("conversation:leave", async (conversationId) => {
+        await ConversationService.updateLastSeen(conversationId, socket.user.id);
+        socket.leave(conversationId);
+
+        console.log(`User ${socket.user.id} left conversation ${conversationId}`);
+    });
 
     socket.on("receiver:join", (conversationId) => {
         socket.join(conversationId);
@@ -41,24 +55,13 @@ module.exports = (socket, io) => {
             ...rest
         }) => {
             try {
-                let filesToUpload = [];
-
-                if (files) {
-                    filesToUpload = [
-                        {
-                            buffer: Buffer.from(files),
-                            mimetype:
-                                type === "image" ? "image/jpeg" : "video/mp4",
-                        },
-                    ];
-                }
 
                 const msg = await messageService.createMessage({
                     senderId: socket.user.id,
                     receiverId,
                     conversationId,
                     content,
-                    files: filesToUpload,
+                    files,
                     type,
                     location,
                     ...rest,
@@ -167,6 +170,11 @@ module.exports = (socket, io) => {
     socket.on("message:typing", async ({ conversationId }) => {
         // Broadcast to other users in the conversation
 
+        if (!conversationId) {
+            console.error("Conversation ID is required");
+            return;
+        }
+
         const participants = await ConversationService.getAllParticipants(
             conversationId
         );
@@ -192,6 +200,10 @@ module.exports = (socket, io) => {
     // Handle stopTyping event
     socket.on("message:stopTyping", async ({ conversationId }) => {
         // Broadcast to other users in the conversation
+        if (!conversationId) {
+            console.error("Conversation ID is required");
+            return;
+        }
 
         const participants = await ConversationService.getAllParticipants(
             conversationId

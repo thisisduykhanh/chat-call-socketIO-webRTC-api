@@ -7,7 +7,7 @@ const socketAuth = require("~/socket/middleware/auth");
 const UserService = require("~/api/services/user.service");
 
 const { activeCalls } = require("~/socket/state/callState");
-const {getUsersInPrivateConversations} = require("~/api/services/conversation.service");
+const {getUsersInPrivateConversations, updateMessageStatusForReceivers, getAllParticipants} = require("~/api/services/conversation.service");
 
 
 const {
@@ -41,6 +41,7 @@ module.exports = (app, server) => {
         socket.join(userId);
         await setAsync(`user:${userId}:status`, "online", 60);
         console.log(`User ${userId} status updated to online`);
+        await updateMessageStatusForReceivers(userId);
 
 
 
@@ -104,7 +105,7 @@ module.exports = (app, server) => {
       
                         let conversationMembers;
                         try {
-                            conversationMembers = await ConversationService.getAllParticipants(conversationId);
+                            conversationMembers = await getAllParticipants(conversationId);
                         } catch (err) {
                             console.error(`Error fetching conversation members: ${err.message}`);
                             return;

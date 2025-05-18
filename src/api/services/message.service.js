@@ -2,7 +2,7 @@ const Message = require("@/models/message.model");
 const Conversation = require("@/models/conversation.model");
 const CreateError = require("http-errors");
 const conversationService = require("@/services/conversation.service");
-const { handleFileUpload } = require("~/socket/middleware/upload");
+const { handleFileUpload } = require("~/api/middleware/upload.middeware");
 
 class MessageService {
     async createMessage({
@@ -24,15 +24,22 @@ class MessageService {
             if (!conversation)
                 throw new CreateError.NotFound("Conversation not found");
 
-            if (!conversation.participants.includes(senderId)) {
+            const isParticipant = conversation.participants.some(
+                (p) => p.user && p.user._id.toString() === senderId.toString()
+              );
+
+            if (!isParticipant) {
                 throw new CreateError.Forbidden('You are not a participant in this conversation');
               }
 
               if (conversation.participants.length === 2) {
-                receiverId = conversation.participants.find(
-                  (participant) => participant.toString() !== senderId.toString()
+                const receiver = conversation.participants.find(
+                  (p) => p.user && p.user._id.toString() !== senderId.toString()
                 );
-            }
+                if (receiver) {
+                  receiverId = receiver.user._id;
+                }
+              }
 
         } else if (receiverId) {
             console.log("Receiver ID:", receiverId);
@@ -46,18 +53,6 @@ class MessageService {
                 "Missing receiverId or conversationId"
             );
         }
-
-        let uploadedFiles = [];
-        if (files.length > 0) {
-            try {
-                uploadedFiles = await handleFileUpload(files); // Xử lý upload file (Cloudinary hoặc Firebase)
-            } catch (error) {
-                throw new CreateError.BadRequest(
-                    `File upload failed: ${error.message}`
-                );
-            }
-        }
-
 
         if (type === 'location' && (!location || !location.lat || !location.lng)) {
             throw new CreateError.BadRequest('Invalid location data');
@@ -73,16 +68,13 @@ class MessageService {
             ...rest,
         };
 
-        if (uploadedFiles.length > 0) {
-            messageData.media = uploadedFiles;
+        if (files.length > 0) {
+            messageData.media = files;
         }
 
         const message = new Message(messageData);
 
         conversation.lastMessage = message._id;
-
-        // await message.save();
-        // await conversation.save();
 
         await Promise.all([message.save(), conversation.save()]);
 
@@ -152,7 +144,8 @@ class MessageService {
 
         if (receiverId) {
             conversation = await Conversation.findOne({
-                participants: { $all: [userId, receiverId], $size: 2 },
+                'participants.user': { $all: [userId, receiverId] },
+                $expr: { $eq: [{ $size: "$participants" }, 2] },
                 isGroup: false,
             });
             if (!conversation) {
@@ -164,7 +157,11 @@ class MessageService {
                 throw CreateError.NotFound("Conversation not found.");
             }
 
-            if (!conversation.participants.includes(userId)) {
+            const isInConversation = conversation.participants.some(
+                (p) => p.user && p.user._id === userId
+            );
+
+            if (isInConversation) {
                 throw CreateError.Forbidden(
                     "You are not a member of this conversation."
                 );
@@ -179,6 +176,22 @@ class MessageService {
             });
 
         return messages;
+    }
+
+    async updateStatusWhenInRoom(receivers, messageId) {
+        return await Message.findOneAndUpdate(
+            { _id: messageId },
+            {
+                $addToSet: {
+                    seenBy: {
+                        $each: receivers.map(userId => ({ user: userId, seenAt: new Date() }))
+                    }
+                },
+                $set: { status: 'seen' }
+            },
+            { new: true }
+        );
+        
     }
 }
 

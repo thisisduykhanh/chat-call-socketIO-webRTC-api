@@ -33,15 +33,16 @@ class SearchService {
         if (!users.length) return [];
 
         const conversations = await Conversation.find({
-            participants: { $all: [userId] },
-        }).select("participants");
+            "participants.user": { $all: [userId] },
+        }).select("participants.user");
+
 
         const validUserIds = new Set();
         validUserIds.add(userId.toString());
         for (const convo of conversations) {
             for (const participant of convo.participants) {
-                if (participant.toString() !== userId.toString()) {
-                    validUserIds.add(participant.toString());
+                if (participant.user.toString() !== userId.toString()) {
+                    validUserIds.add(participant.user.toString());
                 }
             }
         }
