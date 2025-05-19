@@ -5,6 +5,19 @@ const {
 
 const MessageService = require("~/api/services/message.service");
 
+
+
+function getOnlineUserIdsExceptSelf(io, selfUserId) {
+    return io.fetchSockets().then(sockets => {
+        return new Set(
+            sockets
+              .filter(s => s.user && s.user.id !== selfUserId)
+              .map(s => s.user.id)
+        );
+    });
+}
+
+
 const emitToConversation = async ({ io, socket, msg, tempId }) => {
     const { receiver, conversation, sender } = msg;
 
@@ -12,33 +25,48 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
         conversation._id.toString()
     );
 
-    if (roomSockets) {
-        console.log("roomSockets (socket IDs):", Array.from(roomSockets));
+    let receivers = [];
 
-        const sockets = Array.from(roomSockets).map((socketId) => {
-            const socket = io.sockets.sockets.get(socketId);
-            console.log("Socket ID:", socketId, "UserID:", socket?.userId);
-            return socket;
-        });
-
-        const receivers = sockets
-            .filter(
-                (socket) =>
-                    socket?.user.id && socket.user.id !== sender._id.toString()
-            )
+    if (roomSockets?.size > 1) {
+        receivers = Array.from(roomSockets)
+            .map((socketId) => io.sockets.sockets.get(socketId))
+            .filter((socket) => socket?.user?.id && socket.user.id !== sender._id.toString())
             .map((socket) => socket.user.id);
-
-        console.log("Receivers (user IDs):", receivers);
-
+    
         if (receivers.length > 0) {
-            const updateMessage = await MessageService.updateStatusWhenInRoom(
+            const updateMessage = await MessageService.updateStatusWhenInConversation(
                 receivers,
-                msg._id
+                msg._id,
+                'seen'
             );
-
             msg.status = updateMessage.status;
             msg.seenBy = updateMessage.seenBy;
         }
+    } else {
+
+        console.log("roomSockets", roomSockets);
+        const users = await ConversationService.getUsersInPrivateConversations(socket.user.id);
+        const userIds = users.map(user => user._id.toString());
+
+        console.log("userIds", userIds);
+
+        // Lọc ra các socket đang kết nối
+        const connectedUserIds = await getOnlineUserIdsExceptSelf(io, socket.user.id);
+
+        
+        const onlineUserIds = userIds.filter(userId => connectedUserIds.has(userId));
+
+        console.log("onlineUserIds", onlineUserIds);
+
+        if (onlineUserIds.length > 0) {
+            const updateMessage = await MessageService.updateStatusWhenInConversation(
+                onlineUserIds,
+                msg._id,
+                'delivered'
+            );
+            msg.status = updateMessage.status;
+        }
+
     }
 
     // tin nhắn 1:1
@@ -78,6 +106,26 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
                     `Sent message to participant ${participantId} in conversation ${conversation._id}`
                 );
             }
+        }
+
+        if (msg.seenBy && msg.seenBy.length > 0) {
+            const seenByIds = msg.seenBy.map((seen) => seen.user.toString());
+            const unseenParticipants = participants.filter(
+                (participant) => !seenByIds.includes(participant._id.toString())
+            );
+            await sendMulticastNotification(
+                unseenParticipants.map((p) => p._id.toString()),
+                {
+                    title: sender?.name || "",
+                    body: msg.content,
+                    type: "message",
+                    data: {
+                        conversationId: conversation._id.toString(),
+                        displayName: sender?.name || "",
+                        avatarUrl: sender?.avatarUrl || "",
+                    },
+                }
+            );
         }
 
         await sendMulticastNotification(

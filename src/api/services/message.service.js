@@ -26,21 +26,23 @@ class MessageService {
 
             const isParticipant = conversation.participants.some(
                 (p) => p.user && p.user._id.toString() === senderId.toString()
-              );
+            );
 
             if (!isParticipant) {
-                throw new CreateError.Forbidden('You are not a participant in this conversation');
-              }
+                throw new CreateError.Forbidden(
+                    "You are not a participant in this conversation"
+                );
+            }
 
-              if (conversation.participants.length === 2) {
+            if (conversation.participants.length === 2) {
                 const receiver = conversation.participants.find(
-                  (p) => p.user && p.user._id.toString() !== senderId.toString()
+                    (p) =>
+                        p.user && p.user._id.toString() !== senderId.toString()
                 );
                 if (receiver) {
-                  receiverId = receiver.user._id;
+                    receiverId = receiver.user._id;
                 }
-              }
-
+            }
         } else if (receiverId) {
             console.log("Receiver ID:", receiverId);
             conversation =
@@ -54,9 +56,12 @@ class MessageService {
             );
         }
 
-        if (type === 'location' && (!location || !location.lat || !location.lng)) {
-            throw new CreateError.BadRequest('Invalid location data');
-          }
+        if (
+            type === "location" &&
+            (!location || !location.lat || !location.lng)
+        ) {
+            throw new CreateError.BadRequest("Invalid location data");
+        }
 
         const messageData = {
             conversation: conversation._id,
@@ -79,10 +84,10 @@ class MessageService {
         await Promise.all([message.save(), conversation.save()]);
 
         await message.populate([
-            { path: 'receiver', select: 'name avatarUrl' },
-            { path: 'sender', select: 'name avatarUrl' },
-            { path: 'conversation', select: 'name avatar' }
-          ]);
+            { path: "receiver", select: "name avatarUrl" },
+            { path: "sender", select: "name avatarUrl" },
+            { path: "conversation", select: "name avatar" },
+        ]);
 
         return message;
     }
@@ -144,7 +149,7 @@ class MessageService {
 
         if (receiverId) {
             conversation = await Conversation.findOne({
-                'participants.user': { $all: [userId, receiverId] },
+                "participants.user": { $all: [userId, receiverId] },
                 $expr: { $eq: [{ $size: "$participants" }, 2] },
                 isGroup: false,
             });
@@ -178,20 +183,27 @@ class MessageService {
         return messages;
     }
 
-    async updateStatusWhenInRoom(receivers, messageId) {
-        return await Message.findOneAndUpdate(
-            { _id: messageId },
-            {
-                $addToSet: {
-                    seenBy: {
-                        $each: receivers.map(userId => ({ user: userId, seenAt: new Date() }))
-                    }
+
+    async updateStatusWhenInConversation(receivers, messageId, status) {
+        const update = {
+            $set: { status },
+        };
+
+        // Chỉ cập nhật seenBy nếu là 'seen'
+        if (status === "seen") {
+            update.$addToSet = {
+                seenBy: {
+                    $each: receivers.map((userId) => ({
+                        user: userId,
+                        seenAt: new Date(),
+                    })),
                 },
-                $set: { status: 'seen' }
-            },
-            { new: true }
-        );
-        
+            };
+        }
+
+        return await Message.findOneAndUpdate({ _id: messageId }, update, {
+            new: true,
+        });
     }
 }
 

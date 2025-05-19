@@ -2,13 +2,20 @@
 const mongoose = require('mongoose');
 
 const callSchema = new mongoose.Schema({
-  conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
-  initiator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  type: { type: String, enum: ['audio', 'video'], required: true },
-  startedAt: { type: Date },
-  endedAt: { type: Date },
-  status: { type: String, enum: ['missed', 'completed', 'cancelled'], default: 'completed' }
-}, { timestamps: true });
+
+  conversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation', required: true },
+
+  participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
+
+  type: { type: String, enum: ['voice', 'video'], required: true },
+
+  status: { type: String, enum: ['missed', 'completed'], default: 'completed' }, 
+
+  duration: { type: Number, default: 0 },
+
+  caller: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+}, {
+  timestamps: true
+});
 
 module.exports = mongoose.model('Call', callSchema);

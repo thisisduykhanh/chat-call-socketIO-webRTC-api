@@ -3,6 +3,7 @@ const ConversationService = require("~/api/services/conversation.service");
 const { activeCalls } = require("~/socket/state/callState");
 
 const messageService = require("@/services/message.service");
+const callService = require("@/services/call.service");
 
 const {
     sendMulticastNotification,
@@ -170,6 +171,15 @@ module.exports = (socket, io) => {
                     };          
                   
                  const savedMessage = await messageService.createMessage(message);
+
+                 await callService.createCall({
+                    conversation: conversationId,
+                    participants: [userId],
+                    type: callType || "voice",
+                    status: "missed",
+                    duration: 0,
+                    caller: userId,
+                 });
 
                   await setAsync(
                       `message:${conversationId}:${savedMessage._id}`,
@@ -357,6 +367,15 @@ module.exports = (socket, io) => {
               };  
 
               const savedMessage = await messageService.createMessage(message);
+
+              await callService.createCall({
+                    conversation: conversationId,
+                    participants: [userId],
+                    type: callType || "voice",
+                    status: "missed",
+                    duration: 0,
+                    caller: userId,
+                 });
                       
                 await setAsync(
                   `message:${conversationId}:${savedMessage._id}`,
@@ -425,6 +444,15 @@ module.exports = (socket, io) => {
               
             const savedMessage = await messageService.createMessage(message);
 
+                await callService.createCall({
+                    conversation: conversationId,
+                    participants: participants,
+                    type: callType || "voice",
+                    status: "completed",
+                    duration: duration,
+                    caller: userId,
+                });
+
               await setAsync(
                   `message:${conversationId}:${savedMessage._id}`,
                   savedMessage,
@@ -469,6 +497,14 @@ module.exports = (socket, io) => {
                   };          
 
                   const savedMessage = await messageService.createMessage(message);
+                    await callService.createCall({
+                        conversation: conversationId,
+                        participants: [userId],
+                        type: callType || "voice",
+                        status: "completed",
+                        duration: duration,
+                        caller: userId,
+                    });
 
                   await setAsync(
                       `message:${conversationId}:${savedMessage._id}`,

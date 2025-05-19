@@ -248,6 +248,7 @@ class ConversationService {
 
         return users;
     }
+
 }
 
 module.exports = new ConversationService();

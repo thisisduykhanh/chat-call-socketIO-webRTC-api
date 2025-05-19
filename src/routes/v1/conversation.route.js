@@ -8,7 +8,6 @@ const router = express.Router();
 
 router.get("/", verifyAccessToken, getConversations);
 
-
 router.get("/messages", verifyAccessToken, getMessagesByConversationId);
 
 module.exports = router;
