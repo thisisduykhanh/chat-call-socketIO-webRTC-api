@@ -8,8 +8,6 @@ const FederatedCredential = require("@/models/federatedCredential.model");
 const { OAuth2Client } = require("google-auth-library");
 const config = require("~/config");
 
-
-
 const {
     delAsync,
     getAsync,
@@ -32,7 +30,6 @@ const {
 const admin = require("~/config/firebase-admin");
 
 class AuthService {
-
     async register({ name, email, phone, password }) {
         try {
             if (!email && !phone)
@@ -43,9 +40,19 @@ class AuthService {
                     "Password must be at least 6 characters"
                 );
 
+            const query = [];
+
+            if (email) query.push({ email });
+            if (phone) query.push({ phone });
+
             const existingUser = await User.findOne({
-                $or: [{ email }, { phone }],
+                $or: query,
             });
+
+            console.log("existingUser", email, phone);
+
+            console.log("existingUser", existingUser);
+
             if (existingUser) throw CreateError.Conflict("User already exists");
 
             const newUser = new User({
@@ -126,9 +133,7 @@ class AuthService {
             }
 
             if (!user.verified) {
-
-                if (user.email === emailOrPhone)
-                    await sendOTP(user);
+                if (user.email === emailOrPhone) await sendOTP(user);
 
                 throw CreateError.Unauthorized(
                     user.email === emailOrPhone
@@ -303,23 +308,23 @@ class AuthService {
                     config.GOOGLE_CLIENT_ID_ANDROID,
                     config.GOOGLE_CLIENT_ID,
                     // config.GOOGLE_CLIENT_ID_IOS,
-                  ],
+                ],
             });
-    
+
             const payload = ticket.getPayload();
             const googleId = payload.sub;
             const email = payload.email || null;
             const name = payload.name || null;
             const avatar = payload.picture || null;
             const phone = payload.phone || undefined;
-    
+
             let cred = await FederatedCredential.findOne({
                 provider: "https://accounts.google.com",
                 subject: googleId,
             });
-    
+
             let user;
-    
+
             if (!cred) {
                 const newUser = new User({
                     email,
@@ -330,22 +335,24 @@ class AuthService {
                     avatarUrl: avatar,
                 });
                 const savedUser = await newUser.save();
-    
+
                 await new FederatedCredential({
                     user_id: savedUser._id,
                     provider: "https://accounts.google.com",
                     subject: googleId,
                 }).save();
-    
+
                 user = savedUser;
             } else {
                 user = await User.findById(cred.user_id);
             }
-    
+
             const payloadJwt = { id: user._id, username: user.username };
-            const { refreshToken, sessionId } = await createRefreshToken(payloadJwt);
+            const { refreshToken, sessionId } = await createRefreshToken(
+                payloadJwt
+            );
             const accessToken = signAccessToken({ ...payloadJwt, sessionId });
-    
+
             return { accessToken, refreshToken, sessionId };
         } catch (err) {
             throw new Error("Invalid Google token");
