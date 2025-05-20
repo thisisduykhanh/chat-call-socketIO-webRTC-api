@@ -1,10 +1,8 @@
 const JWT = require("jsonwebtoken");
-const fs = require('fs');
+const fs = require("node:fs");
 
-const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_PATH, 'utf8');
-const publicKey = fs.readFileSync(process.env.PUBLIC_KEY_PATH, 'utf8');
-
-
+const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_PATH, "utf8");
+const publicKey = fs.readFileSync(process.env.PUBLIC_KEY_PATH, "utf8");
 
 // Sign an access token
 const signAccessToken = (payload) => {
@@ -31,7 +29,9 @@ const generateResetToken = (payload) => {
 
 // Verify a token (access or refresh)
 const verifyToken = (token) => {
-	return JWT.verify(token, publicKey, { algorithms: [process.env.JWT_ALGORITHM] });
+	return JWT.verify(token, publicKey, {
+		algorithms: [process.env.JWT_ALGORITHM],
+	});
 };
 
 module.exports = {

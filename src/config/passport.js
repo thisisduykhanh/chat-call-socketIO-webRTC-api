@@ -4,7 +4,6 @@ const User = require("@/models/user.model");
 const { verifyGoogleAccount } = require("@/controllers/auth.controller");
 const config = require("./index");
 
-
 /**
  * Configure Google OAuth strategy for Passport.
  */

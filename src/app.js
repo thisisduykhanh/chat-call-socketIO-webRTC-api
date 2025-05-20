@@ -11,24 +11,21 @@ const connectDB = require("~/config/mongoDB");
 const { connectRedis } = require("~/config/redis");
 
 const socket = require("~/socket");
-const http = require('http');
+const http = require("node:http");
 const path = require("node:path");
 const cors = require("cors");
 
 const errorHandler = require("@/middleware/errorHandler");
-
 
 require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
 
-
 // connect to database
 connectDB();
 connectRedis();
 socket(app, server);
-
 
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -51,14 +48,12 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(compression());
 
-
-
 // Use the apiRouter function to set up the API routes
 apiRouter(app);
 
 // Error handling
 app.use((req, res, next) => {
-    next(createError.NotFound("Page not found"));
+	next(createError.NotFound("Page not found"));
 });
 
 app.use(errorHandler);

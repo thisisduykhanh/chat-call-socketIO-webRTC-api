@@ -2,7 +2,7 @@ const { Redis } = require("ioredis");
 const config = require("./index");
 
 const redisClient = new Redis({
-    url: `redis://${config.REDIS_HOST || "redis"}:${config.REDIS_PORT || 6379}`,
+	url: `redis://${config.REDIS_HOST || "redis"}:${config.REDIS_PORT || 6379}`,
 });
 
 /**
@@ -13,19 +13,19 @@ const redisClient = new Redis({
  * @throws {Error} If there is an error connecting to Redis
  */
 const connectRedis = async () => {
-    try {
-        // await redisClient.connect();
-        const result = await redisClient.ping();
-        console.log("Redis ping response:", result);
-    } catch (err) {
-        console.error("Error connecting to Redis:", err);
-    }
+	try {
+		// await redisClient.connect();
+		const result = await redisClient.ping();
+		console.log("Redis ping response:", result);
+	} catch (err) {
+		console.error("Error connecting to Redis:", err);
+	}
 };
 
 redisClient.on("error", (err) => console.log("Redis Client Error", err));
 
 redisClient.on("ready", () => {
-    console.log("Redis is ready");
+	console.log("Redis is ready");
 });
 
 /**
@@ -47,18 +47,17 @@ redisClient.on("ready", () => {
 // };
 
 const setAsync = async (key, value, seconds) => {
-    try {
-        if (typeof seconds === "number" && seconds > 0) {
-            await redisClient.set(key, JSON.stringify(value), "EX", seconds);
-        } else {
-            await redisClient.set(key, JSON.stringify(value));
-        }
-    } catch (err) {
-        console.error(`Error setting value in Redis for key ${key}:`, err);
-        throw err;
-    }
+	try {
+		if (typeof seconds === "number" && seconds > 0) {
+			await redisClient.set(key, JSON.stringify(value), "EX", seconds);
+		} else {
+			await redisClient.set(key, JSON.stringify(value));
+		}
+	} catch (err) {
+		console.error(`Error setting value in Redis for key ${key}:`, err);
+		throw err;
+	}
 };
-
 
 /**
  * Get a value from Redis.
@@ -69,12 +68,12 @@ const setAsync = async (key, value, seconds) => {
  * @throws {Error} If there is an error retrieving the value.
  */
 const getAsync = async (key) => {
-    try {
-        const value = await redisClient.get(key);
-        return JSON.parse(value);
-    } catch (err) {
-        console.error("Error getting value from Redis:", err);
-    }
+	try {
+		const value = await redisClient.get(key);
+		return JSON.parse(value);
+	} catch (err) {
+		console.error("Error getting value from Redis:", err);
+	}
 };
 
 /**
@@ -86,11 +85,11 @@ const getAsync = async (key) => {
  * @throws {Error} If there is an error deleting the value.
  */
 const delAsync = async (key) => {
-    try {
-        await redisClient.del(key);
-    } catch (err) {
-        console.error("Error deleting value from Redis:", err);
-    }
+	try {
+		await redisClient.del(key);
+	} catch (err) {
+		console.error("Error deleting value from Redis:", err);
+	}
 };
 
 /**
@@ -103,26 +102,24 @@ const delAsync = async (key) => {
  * @throws {Error} If there is an error pushing the value.
  */
 const rPushAsync = async (key, values) => {
-    try {
-        if (Array.isArray(values)) {
-            const stringifiedValues = values.map((v) => JSON.stringify(v));
-            await redisClient.rpush(key, ...stringifiedValues);
-        } else {
-            await redisClient.rpush(key, JSON.stringify(values));
-        }
-    } catch (err) {
-        console.error("Error pushing values to Redis:", err);
-    }
+	try {
+		if (Array.isArray(values)) {
+			const stringifiedValues = values.map((v) => JSON.stringify(v));
+			await redisClient.rpush(key, ...stringifiedValues);
+		} else {
+			await redisClient.rpush(key, JSON.stringify(values));
+		}
+	} catch (err) {
+		console.error("Error pushing values to Redis:", err);
+	}
 };
 
-
-
 const lPushAsync = async (key, value) => {
-    try {
-        await redisClient.lpush(key, JSON.stringify(value));
-    } catch (err) {
-        console.error("Error pushing value to Redis:", err);
-    }
+	try {
+		await redisClient.lpush(key, JSON.stringify(value));
+	} catch (err) {
+		console.error("Error pushing value to Redis:", err);
+	}
 };
 
 /**
@@ -136,161 +133,164 @@ const lPushAsync = async (key, value) => {
  * @throws {Error} If there is an error retrieving the range.
  */
 const lRangeAsync = async (key, start, stop) => {
-    try {
-        const values = await redisClient.lrange(key, start, stop);
-        return values.map((value) => JSON.parse(value));
-    } catch (err) {
-        console.error("Error getting range from Redis:", err);
-    }
+	try {
+		const values = await redisClient.lrange(key, start, stop);
+		return values.map((value) => JSON.parse(value));
+	} catch (err) {
+		console.error("Error getting range from Redis:", err);
+	}
 };
 
 const getKeysAsync = async (key) => {
-    return await redisClient.keys(key);
+	return await redisClient.keys(key);
 };
 
 const delKeysAsync = async (pattern) => {
-    try {
-        let cursor = "0";
-        let keysToDelete = [];
+	try {
+		let cursor = "0";
+		const keysToDelete = [];
 
-        do {
-            const reply = await redisClient.scan(
-                cursor,
-                "MATCH",
-                pattern,
-                "COUNT",
-                100
-            );
-            cursor = reply[0];
-            const keys = reply[1];
+		do {
+			const reply = await redisClient.scan(
+				cursor,
+				"MATCH",
+				pattern,
+				"COUNT",
+				100,
+			);
+			cursor = reply[0];
+			const keys = reply[1];
 
-            if (keys.length > 0) {
-                keysToDelete.push(...keys);
-            }
-        } while (cursor !== "0");
+			if (keys.length > 0) {
+				keysToDelete.push(...keys);
+			}
+		} while (cursor !== "0");
 
-        if (keysToDelete.length > 0) {
-            const deleted = await redisClient.del(...keysToDelete);
-            console.log(
-                `Deleted ${deleted} keys matching pattern "${pattern}"`
-            );
-            return deleted;
-        }
+		if (keysToDelete.length > 0) {
+			const deleted = await redisClient.del(...keysToDelete);
+			console.log(`Deleted ${deleted} keys matching pattern "${pattern}"`);
+			return deleted;
+		}
 
-        return 0;
-    } catch (err) {
-        console.error(`Failed to delete keys with pattern "${pattern}":`, err);
-        throw err;
-    }
+		return 0;
+	} catch (err) {
+		console.error(`Failed to delete keys with pattern "${pattern}":`, err);
+		throw err;
+	}
 };
 
 const existsAsync = async (key) => {
-    try {
-        const exists = await redisClient.exists(key);
-        return exists === 1;
-    } catch (err) {
-        console.error("Error checking existence of key in Redis:", err);
-        throw err;
-    }
+	try {
+		const exists = await redisClient.exists(key);
+		return exists === 1;
+	} catch (err) {
+		console.error("Error checking existence of key in Redis:", err);
+		throw err;
+	}
 };
 
 const hSetAsync = async (key, data) => {
-    try {
-        await redisClient.hset(key, data);
-    } catch (err) {
-        console.error(`Error setting hash for key ${key}:`, err);
-    }
+	try {
+		await redisClient.hset(key, data);
+	} catch (err) {
+		console.error(`Error setting hash for key ${key}:`, err);
+	}
 };
 
 const hGetAllAsync = async (key) => {
-    return await redisClient.hgetall(key);
+	return await redisClient.hgetall(key);
 };
 
 const sAddAsync = async (key, member) => {
-    try {
-        await redisClient.sadd(key, member);
-    } catch (err) {
-        console.error(`Error adding member to set ${key}:`, err);
-    }
+	try {
+		await redisClient.sadd(key, member);
+	} catch (err) {
+		console.error(`Error adding member to set ${key}:`, err);
+	}
 };
 
 const sCardAsync = async (key) => {
-    try {
-        return await redisClient.scard(key);
-    } catch (err) {
-        console.error(`Error getting cardinality of set ${key}:`, err);
-    }
+	try {
+		return await redisClient.scard(key);
+	} catch (err) {
+		console.error(`Error getting cardinality of set ${key}:`, err);
+	}
 };
 
 const sMembersAsync = async (key) => {
-    try {
-        return await redisClient.smembers(key);
-    } catch (err) {
-        console.error(`Error getting members of set ${key}:`, err);
-    }
+	try {
+		return await redisClient.smembers(key);
+	} catch (err) {
+		console.error(`Error getting members of set ${key}:`, err);
+	}
 };
 
 const sRemAsync = async (key, member) => {
-    try {
-        await redisClient.srem(key, member);
-    } catch (err) {
-        console.error(`Error removing member from set ${key}:`, err);
-    }
+	try {
+		await redisClient.srem(key, member);
+	} catch (err) {
+		console.error(`Error removing member from set ${key}:`, err);
+	}
 };
 
-const saveInfoCallAsync = async ({ callKey, participantsKey, userId, callType }) => {
-    try {
-        await redisClient
-            .multi()
-            .hset(callKey, {
-                initiator: userId,
-                callType: callType,
-            })
-            .sadd(participantsKey, userId)
-            .expire(callKey, 3600)
-            .expire(participantsKey, 3600)
-            .exec();
+const saveInfoCallAsync = async ({
+	callKey,
+	participantsKey,
+	userId,
+	callType,
+}) => {
+	try {
+		await redisClient
+			.multi()
+			.hset(callKey, {
+				initiator: userId,
+				callType: callType,
+			})
+			.sadd(participantsKey, userId)
+			.expire(callKey, 3600)
+			.expire(participantsKey, 3600)
+			.exec();
 
-        console.log(`Saved call info for user ${userId}`);
-    } catch (err) {
-        console.error("Error saving call info:", err);
-    }
+		console.log(`Saved call info for user ${userId}`);
+	} catch (err) {
+		console.error("Error saving call info:", err);
+	}
 };
 
 const updateStartTimeAsync = async ({ callKey }) => {
-    try {
-        const hasStartTime = await redisClient.hexists(callKey, "startTime");
-        if (!hasStartTime) {
-            await redisClient.hset(callKey, {
-                startTime: new Date().toISOString(),
-            });
-            console.log(`Set startTime for call ${callKey}`);
-        } else {
-            console.log(`startTime already set for call ${callKey}`);
-        }
-    } catch (err) {
-        console.error("Error updating startTime:", err);
-    }
+	try {
+		const hasStartTime = await redisClient.hexists(callKey, "startTime");
+		if (!hasStartTime) {
+			await redisClient.hset(callKey, {
+				startTime: new Date().toISOString(),
+			});
+			console.log(`Set startTime for call ${callKey}`);
+		} else {
+			console.log(`startTime already set for call ${callKey}`);
+		}
+	} catch (err) {
+		console.error("Error updating startTime:", err);
+	}
 };
 
 module.exports = {
-    setAsync,
-    // setExAsync,
-    getAsync,
-    delAsync,
-    lPushAsync,
-    rPushAsync,
-    lRangeAsync,
-    connectRedis,
-    getKeysAsync,
-    delKeysAsync,
-    saveInfoCallAsync,
-    existsAsync,
-    hSetAsync,
-    sAddAsync,
-    sCardAsync,
-    sMembersAsync,
-    sRemAsync,
-    hGetAllAsync,
-    updateStartTimeAsync,
+	setAsync,
+	// setExAsync,
+	getAsync,
+	delAsync,
+	lPushAsync,
+	rPushAsync,
+	lRangeAsync,
+	connectRedis,
+	getKeysAsync,
+	delKeysAsync,
+	saveInfoCallAsync,
+	existsAsync,
+	hSetAsync,
+	sAddAsync,
+	sCardAsync,
+	sMembersAsync,
+	sRemAsync,
+	hGetAllAsync,
+	updateStartTimeAsync,
 };

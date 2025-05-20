@@ -18,7 +18,6 @@ const sendOTP = async (user) => {
 	const otp = generateOTP(); // Generate a new OTP
 	await setAsync(`otp:${user._id}`, otp, 300); // OTP expires in 5 minutes
 
-
 	const emailTemplate = Verification_Email_Template.replace(
 		"{verificationCode}",
 		otp,

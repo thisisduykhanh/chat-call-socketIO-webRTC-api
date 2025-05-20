@@ -12,7 +12,6 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
 	},
 });
 
-
 console.log("Private Key:", privateKey);
 console.log("Public Key:", publicKey);
 

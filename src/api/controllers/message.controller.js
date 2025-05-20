@@ -1,188 +1,193 @@
-
 const messageService = require("@/services/message.service");
 const pinnedMessageService = require("@/services/pinned.service");
-const reactionService = require('@/services/reaction.service'); 
+const reactionService = require("@/services/reaction.service");
 
 module.exports = {
+	/**
+	 * * @description Create a new message
+	 * * @param {Object} req - The request object
+	 * * @param {Object} res - The response object
+	 * * @param {Function} next - The next middleware function
+	 * * @returns {Object} - The created message object
+	 * * @throws {Error} - If an error occurs while creating the message
+	 **/
 
-    /**
-     * * @description Create a new message
-     * * @param {Object} req - The request object
-     * * @param {Object} res - The response object
-     * * @param {Function} next - The next middleware function
-     * * @returns {Object} - The created message object
-     * * @throws {Error} - If an error occurs while creating the message
-     **/
+	sendMessage: async (req, res, next) => {
+		try {
+			const { conversationId, receiverId, content, ...rest } = req.body;
 
-    sendMessage: async (req, res, next) => {
-        try {
-            const { conversationId, receiverId, content, ...rest  } =
-                req.body;
+			const sender = req.user.id;
 
-            const sender = req.user.id;
+			const newMessage = await messageService.createMessage({
+				sender,
+				conversationId,
+				receiver: receiverId,
+				content,
+				...rest,
+			});
 
-            const newMessage = await messageService.createMessage({
-                sender,
-                conversationId,
-                receiver: receiverId,
-                content,
-                ...rest,
-            });
+			return res.status(201).json(newMessage);
+		} catch (error) {
+			next(error);
+		}
+	},
 
-            return res.status(201).json(newMessage);
+	/**
+	 * @param {*} req
+	 * @param {*} res
+	 * @param {*} next
+	 * @returns {Object} - The retrieved messages
+	 * @throws {Error} - If an error occurs while retrieving messages
+	 */
 
-        } catch (error) {
-            next(error);
-        }
-    },
+	getMessages: async (req, res, next) => {
+		try {
+			const { conversationId } = req.params;
 
-    /**
-     * @param {*} req 
-     * @param {*} res 
-     * @param {*} next 
-     * @returns {Object} - The retrieved messages
-     * @throws {Error} - If an error occurs while retrieving messages
-     */
+			const messages = await messageService.getMessages(conversationId);
+			return res.status(200).json(messages);
+		} catch (error) {
+			next(error);
+		}
+	},
 
-    getMessages: async (req, res, next) => {
-        try {
-            const { conversationId } = req.params;
+	editMessage: async (req, res, next) => {
+		try {
+			const { messageId } = req.params;
+			const { content: newContent } = req.body;
+			const userId = req.user.id; // hoặc req.userId nếu dùng JWT
 
-            const messages = await messageService.getMessages(conversationId);
-            return res.status(200).json(messages);
-        } catch (error) {
-            next(error);
-        }
-    },
+			const updatedMessage = await messageService.updateMessageContent(
+				messageId,
+				userId,
+				newContent,
+			);
 
+			res.status(200).json(updatedMessage);
+		} catch (error) {
+			next(error);
+		}
+	},
 
-    editMessage: async (req, res, next) => {
-      try {
-          const { messageId } = req.params;
-          const { content: newContent } = req.body;
-          const userId = req.user.id; // hoặc req.userId nếu dùng JWT
-  
-          const updatedMessage = await messageService.updateMessageContent(messageId, userId, newContent);
-  
-          res.status(200).json(updatedMessage);
-      } catch (error) {
-          next(error);
-      }
-  },
+	deleteMessage: async (req, res, next) => {
+		try {
+			const { messageId } = req.params;
+			const userId = req.user.id; // hoặc req.userId nếu dùng JWT
+			const result = await messageService.deleteMessage(messageId, userId);
+			return res.status(200).json(result);
+		} catch (error) {
+			return next(error);
+		}
+	},
 
+	// Pin a message
+	pinMessage: async (req, res, next) => {
+		try {
+			const { messageId } = req.params;
 
-    deleteMessage: async (req, res, next) => {
-        try {
-            const { messageId } = req.params;
-            const userId = req.user.id; // hoặc req.userId nếu dùng JWT
-            const result = await messageService.deleteMessage(messageId, userId);
-            return res.status(200).json(result);
-        } catch (error) {
-            return next(error);
-        }
-    },
+			const { conversationId } = req.body;
 
+			const userId = req.user.id; // hoặc req.userId nếu dùng JWT
+			const result = await pinnedMessageService.pinMessage(
+				conversationId,
+				messageId,
+				userId,
+			);
+			return res.status(200).json(result);
+		} catch (error) {
+			return next(error);
+		}
+	},
 
-    // Pin a message
-    pinMessage: async (req, res, next) => {
-        try {
-            const { messageId } = req.params;
-           
-            const { conversationId } = req.body;
+	unpinMessage: async (req, res, next) => {
+		try {
+			const { conversationId, messageId } = req.body;
+			await pinnedMessageService.unpinMessage({ conversationId, messageId });
 
-            const userId = req.user.id; // hoặc req.userId nếu dùng JWT
-            const result = await pinnedMessageService.pinMessage(conversationId, messageId, userId);
-            return res.status(200).json(result);
-        } catch (error) {
-            return next(error);
-        }
-    },
+			res
+				.status(200)
+				.json({ success: true, message: "Message unpinned successfully." });
+		} catch (error) {
+			next(error);
+		}
+	},
 
+	getPinnedMessages: async (req, res, next) => {
+		try {
+			const { conversationId } = req.params;
+			const pinnedMessages =
+				await pinnedMessageService.getPinnedMessages(conversationId);
+			res.status(200).json(pinnedMessages);
+		} catch (error) {
+			next(error);
+		}
+	},
 
-    unpinMessage: async (req, res, next) => {
-        try {
-            const { conversationId, messageId } = req.body;
-            await pinnedMessageService.unpinMessage({ conversationId, messageId });
+	// Reaction to a message
+	createReaction: async (req, res, next) => {
+		try {
+			const { messageId, type } = req.body;
+			const userId = req.user.id;
 
-            res.status(200).json({ success: true, message: "Message unpinned successfully." });
-        } catch (error) {
-            next(error);
-        }
-    },
+			const newReaction = await reactionService.createReaction({
+				messageId,
+				userId,
+				type,
+			});
 
-    getPinnedMessages: async (req, res, next) => {
-        try {
-            const { conversationId } = req.params;
-            const pinnedMessages = await pinnedMessageService.getPinnedMessages(conversationId);
-            res.status(200).json(pinnedMessages);
-        } catch (error) {
-            next(error);
-        }
-    },
+			return res.status(201).json(newReaction);
+		} catch (error) {
+			next(error);
+		}
+	},
 
-    // Reaction to a message
-    createReaction: async (req, res, next) => {
-        try {
-          const { messageId, type } = req.body;
-          const userId = req.user.id;
-    
-          const newReaction = await reactionService.createReaction({
-            messageId,
-            userId,
-            type,
-          });
-    
-          return res.status(201).json(newReaction);
-        } catch (error) {
-          next(error);
-        }
-      },
-    
-      getReactionsForMessage: async (req, res, next) => {
-        try {
-          const { messageId } = req.params;
-    
-          const reactions = await reactionService.getReactionsForMessage(messageId);
-    
-          return res.status(200).json(reactions);
-        } catch (error) {
-          next(error);
-        }
-      },
-    
-      deleteReaction: async (req, res, next) => {
-        try {
-          const { messageId } = req.params;
-          const userId = req.user.id;  // Giả sử bạn đã lưu user trong req.user
-    
-          const deletedReaction = await reactionService.deleteReaction({
-            messageId,
-            userId,
-          });
-    
-          return res.status(200).json(deletedReaction);
-        } catch (error) {
-          next(error);
-        }
-      },
+	getReactionsForMessage: async (req, res, next) => {
+		try {
+			const { messageId } = req.params;
 
+			const reactions = await reactionService.getReactionsForMessage(messageId);
 
-      getMessagesByConversationId: async (req, res, next) => {
-        try {
-            const { conversationId, receiverId } = req.query;
+			return res.status(200).json(reactions);
+		} catch (error) {
+			next(error);
+		}
+	},
 
-            if (!conversationId && !receiverId) {
-                return res.status(400).json({ message: "conversationId or receiverId is required" });
-            }
-            
-            const userId = req.user.id;
-            const messages = await messageService.getMessagesByConversationId({conversationId,receiverId, userId, });
-            return res.status(200).json(messages);
-        } catch (error) {
-            next(error);
-        }
-    },
+	deleteReaction: async (req, res, next) => {
+		try {
+			const { messageId } = req.params;
+			const userId = req.user.id; // Giả sử bạn đã lưu user trong req.user
 
-      
-    
+			const deletedReaction = await reactionService.deleteReaction({
+				messageId,
+				userId,
+			});
+
+			return res.status(200).json(deletedReaction);
+		} catch (error) {
+			next(error);
+		}
+	},
+
+	getMessagesByConversationId: async (req, res, next) => {
+		try {
+			const { conversationId, receiverId } = req.query;
+
+			if (!conversationId && !receiverId) {
+				return res
+					.status(400)
+					.json({ message: "conversationId or receiverId is required" });
+			}
+
+			const userId = req.user.id;
+			const messages = await messageService.getMessagesByConversationId({
+				conversationId,
+				receiverId,
+				userId,
+			});
+			return res.status(200).json(messages);
+		} catch (error) {
+			next(error);
+		}
+	},
 };

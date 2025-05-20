@@ -18,10 +18,10 @@ router.use("/search", searchRouter);
 router.use("/calls", callRouter);
 
 router.post(
-    "/upload",
-    verifyAccessToken,
-    handleMulterErrors("files"),
-    handleFileUpload
+	"/upload",
+	verifyAccessToken,
+	handleMulterErrors("files"),
+	handleFileUpload,
 );
 
 router.get("/download/:fileId", verifyAccessToken, generateSignedUrl);
