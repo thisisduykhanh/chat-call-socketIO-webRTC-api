@@ -74,7 +74,9 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 	}
 
 	// Lưu trữ tin nhắn vào cache
-	await rPushAsync(`messages:${conversation._id}`, message);
+	await rPushAsync(`messages:${conversation._id}`, msg);
+
+    console.log("message from db");
 
 	// tin nhắn 1:1
 	if (receiver._id && conversation._id) {

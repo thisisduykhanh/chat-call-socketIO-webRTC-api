@@ -65,7 +65,6 @@ module.exports = (socket, io) => {
 					...rest,
 				});
 
-				console.log("Message sent:", msg);
 
 				await emitToConversation({
 					io,
