@@ -2,7 +2,8 @@ const Message = require("@/models/message.model");
 const Conversation = require("@/models/conversation.model");
 const CreateError = require("http-errors");
 const conversationService = require("@/services/conversation.service");
-const { handleFileUpload } = require("~/api/middleware/upload.middeware");
+
+const { rPushAsync, lRangeAsync } = require("~/config/redis");
 
 class MessageService {
     async createMessage({
@@ -82,6 +83,8 @@ class MessageService {
         conversation.lastMessage = message._id;
 
         await Promise.all([message.save(), conversation.save()]);
+
+
 
         await message.populate([
             { path: "receiver", select: "name avatarUrl" },
@@ -163,14 +166,22 @@ class MessageService {
             }
 
             const isInConversation = conversation.participants.some(
-                (p) => p.user && p.user._id === userId
+                (p) => p.user && p.user.toString() === userId
             );
 
-            if (isInConversation) {
+            if (!isInConversation) {
                 throw CreateError.Forbidden(
                     "You are not a member of this conversation."
                 );
             }
+        }
+
+        const cacheKey = `messages:${conversation._id}`;
+
+        const cachedMessages = await lRangeAsync(cacheKey, 0, -1);
+        if (cachedMessages && cachedMessages.length > 0) {
+            console.log("message from cache redis");
+            return cachedMessages;
         }
 
         const messages = await Message.find({ conversation: conversation._id })
@@ -180,9 +191,17 @@ class MessageService {
                 select: "avatarUrl name", // CHỈ lấy trường avatar
             });
 
+        if (!messages) {
+            throw CreateError.NotFound("No messages found.");
+        }
+
+        // Lưu trữ tin nhắn vào cache
+        await rPushAsync(cacheKey, messages);
+
+        console.log("message from db");
+
         return messages;
     }
-
 
     async updateStatusWhenInConversation(receivers, messageId, status) {
         const update = {
@@ -201,9 +220,13 @@ class MessageService {
             };
         }
 
-        return await Message.findOneAndUpdate({ _id: messageId }, update, {
-            new: true,
-        });
+        const updatedMessage = await Message.findOneAndUpdate(
+            { _id: messageId },
+            update,
+            { new: true }
+        );
+
+        return updatedMessage;
     }
 }
 

@@ -5,6 +5,7 @@ const {
 
 const MessageService = require("~/api/services/message.service");
 
+const {rPushAsync} = require("~/config/redis")
 
 
 function getOnlineUserIdsExceptSelf(io, selfUserId) {
@@ -68,6 +69,10 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
         }
 
     }
+
+
+    // Lưu trữ tin nhắn vào cache
+    await rPushAsync(`messages:${conversation._id}`, message);
 
     // tin nhắn 1:1
     if (receiver._id && conversation._id) {

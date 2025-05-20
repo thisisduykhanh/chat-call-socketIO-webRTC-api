@@ -59,23 +59,6 @@ const setAsync = async (key, value, seconds) => {
     }
 };
 
-// /**
-//  * Set a value in Redis with an expiration time.
-//  *
-//  * @async
-//  * @param {string} key - The key to set.
-//  * @param {any} value - The value to set.
-//  * @param {number} seconds - The expiration time in seconds.
-//  * @returns {Promise<void>}
-//  * @throws {Error} If there is an error setting the value with expiration.
-//  */
-// const setExAsync = async (key, value, seconds) => {
-// 	try {
-// 		await redisClient.setEx(key, seconds, JSON.stringify(value));
-// 	} catch (err) {
-// 		console.error("Error setting value in Redis with expiration:", err);
-// 	}
-// };
 
 /**
  * Get a value from Redis.
@@ -119,9 +102,24 @@ const delAsync = async (key) => {
  * @returns {Promise<void>}
  * @throws {Error} If there is an error pushing the value.
  */
-const pushAsync = async (key, value) => {
+const rPushAsync = async (key, values) => {
     try {
-        await redisClient.rPush(key, JSON.stringify(value));
+        if (Array.isArray(values)) {
+            const stringifiedValues = values.map((v) => JSON.stringify(v));
+            await redisClient.rpush(key, ...stringifiedValues);
+        } else {
+            await redisClient.rpush(key, JSON.stringify(values));
+        }
+    } catch (err) {
+        console.error("Error pushing values to Redis:", err);
+    }
+};
+
+
+
+const lPushAsync = async (key, value) => {
+    try {
+        await redisClient.lpush(key, JSON.stringify(value));
     } catch (err) {
         console.error("Error pushing value to Redis:", err);
     }
@@ -137,9 +135,9 @@ const pushAsync = async (key, value) => {
  * @returns {Promise<any[]>} The range of values from the list.
  * @throws {Error} If there is an error retrieving the range.
  */
-const rangeAsync = async (key, start, stop) => {
+const lRangeAsync = async (key, start, stop) => {
     try {
-        const values = await redisClient.lRange(key, start, stop);
+        const values = await redisClient.lrange(key, start, stop);
         return values.map((value) => JSON.parse(value));
     } catch (err) {
         console.error("Error getting range from Redis:", err);
@@ -280,8 +278,9 @@ module.exports = {
     // setExAsync,
     getAsync,
     delAsync,
-    pushAsync,
-    rangeAsync,
+    lPushAsync,
+    rPushAsync,
+    lRangeAsync,
     connectRedis,
     getKeysAsync,
     delKeysAsync,

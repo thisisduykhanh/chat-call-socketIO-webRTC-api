@@ -11,8 +11,6 @@ const config = require("~/config");
 const {
     delAsync,
     getAsync,
-    delKeysAsync,
-    rangeAsync,
     getKeysAsync,
 } = require("~/config/redis");
 

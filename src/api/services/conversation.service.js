@@ -1,88 +1,9 @@
-// const Conversation = require('@/models/conversation.model');
-// const User = require('@/models/user.model');
-// const Message = require('@/models/message.model');
-
-// class ConversationService {
-
-//     async markMessagesAsRead(conversationId, userId) {
-//         await Message.updateMany(
-//             {
-//               conversation: conversationId,
-//               sender: { $ne: userId },
-//               "seenBy.user": { $ne: userId }
-//             },
-//             {
-//               $push: { seenBy: { user: userId, seenAt: new Date() } },
-//               $set: { status: "seen" }
-//             }
-//           );
-//     }
-
-//     async getOrCreateOneToOneConversation(userAId, userBId) {
-//         const existing = await Conversation.findOne({
-//             isGroup: false,
-//             participants: { $all: [userAId, userBId], $size: 2 },
-//         });
-
-//         if (existing) return existing;
-
-//         const newConversation = new Conversation({
-//             isGroup: false,
-//             participants: [userAId, userBId],
-//         });
-//         return await newConversation.save();
-//     }
-
-//     async getConversationByUserId(userId) {
-//         const conversations = await Conversation.find({
-//             participants: userId,
-//         }).populate("participants", "username avatarUrl name lastSeen").populate({
-//             path: "lastMessage",
-//             select: "content sender createdAt",
-//             populate: {
-//               path: "sender",
-//               select: "username avatarUrl name",
-//             },
-//           }).sort({ updatedAt: -1 });
-
-//         return conversations;
-//     }
-
-//     async getAllParticipants(conversationId) {
-//         const conversation = await Conversation.findById(conversationId).populate("participants", "username avatarUrl name");
-//         if (!conversation) throw new Error("Conversation not found");
-
-//         return conversation.participants;
-//     }
-
-//     async getUsersInPrivateConversations(userId) {
-//         const conversations = await Conversation.find({
-//             participants: { $all: [userId] },
-//             $expr: { $eq: [{ $size: "$participants" }, 2] }
-//         }).populate({
-//             path: "participants",
-//             select: "username email phone name avatar"
-//         });
-
-//         const users = [];
-
-//         for (const convo of conversations) {
-//             for (const participant of convo.participants) {
-//                 if (participant._id.toString() !== userId.toString()) {
-//                     users.push(participant);
-//                 }
-//             }
-//         }
-
-//         return users;
-//     }
-
-// }
-
-// module.exports = new ConversationService();
 
 const Conversation = require("@/models/conversation.model");
 const Message = require("@/models/message.model");
+
+const {delAsync} = require("~/config/redis");
+
 
 class ConversationService {
     async markMessagesAsRead(conversationId, userId) {
@@ -122,6 +43,8 @@ class ConversationService {
             { $set: { "participants.$.lastSeenAt": now } }
         );
 
+        await delAsync(`messages:${conversationId}`);
+
         return messagesToUpdate.map((msg) => ({
             ...msg,
             status: "seen",
@@ -157,6 +80,8 @@ class ConversationService {
                     },
                 },
             });
+
+            await delAsync(`messages:${convo._id}`);
         }
 
         if (bulkOps.length > 0) {
