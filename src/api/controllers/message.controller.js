@@ -171,7 +171,7 @@ module.exports = {
 
 	getMessagesByConversationId: async (req, res, next) => {
 		try {
-			const { conversationId, receiverId } = req.query;
+			const { conversationId, receiverId, cursor, limit } = req.query;
 
 			if (!conversationId && !receiverId) {
 				return res
@@ -180,12 +180,14 @@ module.exports = {
 			}
 
 			const userId = req.user.id;
-			const messages = await messageService.getMessagesByConversationId({
+			const data = await messageService.getMessagesByConversationId({
 				conversationId,
 				receiverId,
 				userId,
+				cursor,
+				limit,
 			});
-			return res.status(200).json(messages);
+			return res.status(200).json(data);
 		} catch (error) {
 			next(error);
 		}

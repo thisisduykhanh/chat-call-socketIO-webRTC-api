@@ -44,7 +44,7 @@ async function handleFileUpload(req, res, next) {
 
 				if (mimetype.startsWith("image/") || mimetype.startsWith("video/")) {
 					// Upload to Cloudinary
-					return await uploadToCloudinary(buffer, mimetype, fileId);
+					return await uploadToCloudinary(buffer, mimetype, fileId, originalname);
 				}
 				// Upload to Cloudflare R2
 				return await uploadToCloudflareR2(
@@ -64,7 +64,7 @@ async function handleFileUpload(req, res, next) {
 	}
 }
 
-async function uploadToCloudinary(buffer, mimetype, fileId) {
+async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
 	return new Promise((resolve, reject) => {
 		const uploadStream = cloudinary.uploader.upload_stream(
 			{
@@ -77,7 +77,7 @@ async function uploadToCloudinary(buffer, mimetype, fileId) {
 					storage: "cloudinary",
 					fileId: fileId,
 					fileUrl: result.secure_url,
-					fileName: result.original_filename,
+					fileName: originalname,
 					fileSize: result.bytes,
 					mimeType: mimetype,
 				});

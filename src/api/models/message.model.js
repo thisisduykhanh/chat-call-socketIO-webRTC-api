@@ -139,7 +139,7 @@ const MessageSchema = new mongoose.Schema(
 // MessageSchema.index({ threadRoot });
 
 MessageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
-MessageSchema.index({ conversation: 1, createdAt: -1 });
+MessageSchema.index({ conversation: 1, _id: -1 });
 MessageSchema.index({ replyTo: 1 });
 MessageSchema.index({ threadRoot: 1 });
 
