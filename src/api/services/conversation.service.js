@@ -125,7 +125,7 @@ class ConversationService {
 			})
 			.populate({
 				path: "lastMessage",
-				select: "content sender createdAt",
+				select: "content sender createdAt status seenBy",
 				populate: {
 					path: "sender",
 					select: "username avatarUrl name",

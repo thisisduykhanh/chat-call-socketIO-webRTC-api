@@ -44,8 +44,8 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 		}
 	} else {
 		console.log("roomSockets", roomSockets);
-		const users = await ConversationService.getUsersInPrivateConversations(
-			socket.user.id,
+		const users = await ConversationService.getAllParticipants(
+			conversation._id.toString(),
 		);
 		const userIds = users.map((user) => user._id.toString());
 
@@ -64,6 +64,7 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 		console.log("onlineUserIds", onlineUserIds);
 
 		if (onlineUserIds.length > 0) {
+
 			const updateMessage = await MessageService.updateStatusWhenInConversation(
 				onlineUserIds,
 				msg._id,
@@ -76,7 +77,6 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 	// Lưu trữ tin nhắn vào cache
 	await rPushAsync(`messages:${conversation._id}`, msg);
 
-    console.log("message from db");
 
 	// tin nhắn 1:1
 	if (receiver._id && conversation._id) {
