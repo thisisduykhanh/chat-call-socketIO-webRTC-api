@@ -20,9 +20,11 @@ function getOnlineUserIdsExceptSelf(io, selfUserId) {
 const emitToConversation = async ({ io, socket, msg, tempId }) => {
 	const { receiver, conversation, sender } = msg;
 
-	const roomSockets = io.sockets.adapter.rooms.get(conversation._id.toString());
+	const roomSockets =  io.sockets.adapter.rooms.get(conversation._id.toString());
 
 	let receivers = [];
+
+	console.log("roomSockets", roomSockets);
 
 	if (roomSockets?.size > 1) {
 		receivers = Array.from(roomSockets)
@@ -74,8 +76,6 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 		}
 	}
 
-	// Lưu trữ tin nhắn vào cache
-	await rPushAsync(`messages:${conversation._id}`, msg);
 
 
 	// tin nhắn 1:1

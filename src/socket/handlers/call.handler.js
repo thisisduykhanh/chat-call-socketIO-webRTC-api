@@ -164,6 +164,13 @@ module.exports = (socket, io) => {
                         } call`,
                         status: "sent",
                         type: "call",
+
+						callData: {
+							callType: callType || "voice",
+							duration: 0,
+							participants: [userId],
+						},
+						timestamp: Date.now(),
                     };
 
                     const savedMessage = await messageService.createMessage(
@@ -355,6 +362,11 @@ module.exports = (socket, io) => {
                     timestamp: endTime.getTime(),
                     status: "sent",
                     type: "call",
+					callData: {
+						callType: callType || "voice",
+						duration: 0,
+						participants: [userId],
+					},
                 };
 
                 const savedMessage = await messageService.createMessage(

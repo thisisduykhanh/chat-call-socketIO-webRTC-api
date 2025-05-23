@@ -57,6 +57,8 @@ async function handleFileUpload(req, res, next) {
 			}),
 		);
 
+		console.log("Uploaded files:", uploadedFiles);
+
 		res.json({ success: true, files: uploadedFiles });
 	} catch (error) {
 		console.error("Upload error:", error);
