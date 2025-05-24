@@ -5,7 +5,7 @@ Content-Type: application/json
 {
     "email": "duykhanh180324@gmail.com",
     "password": "123456",
-    "name": "khanh"
+    "name": "Brianna Sullivan"
 }
 
 ### login
@@ -13,7 +13,7 @@ POST http://localhost:8080/api/v1/users/login
 Content-Type: application/json
 
 {
-    "emailOrPhone": "khanhmh2004@gmail.com",
+    "emailOrPhone": "duykhanh180324@gmail.com",
     "password": "123456"
 }
 
@@ -43,7 +43,7 @@ Content-Type: application/json
 ### forgot password
 POST http://localhost:8080/api/v1/users/forgot-password
 Content-Type: application/json
- 
+
 {
     "email": "khanhmh2004@gmail.com"
 }
@@ -51,7 +51,7 @@ Content-Type: application/json
 ### verify otp reset password
 POST http://localhost:8080/api/v1/users/verify-otp-reset-password
 Content-Type: application/json
- 
+
 {
     "email": "khanhmh2004@gmail.com",
     "otp": "157992"
@@ -61,7 +61,7 @@ Content-Type: application/json
 ### reset password
 POST http://localhost:8080/api/v1/users/reset-password
 Content-Type: application/json
- 
+
 {
     "resetToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2Y3NGMxOTU3MDc5N2JlMTVjNTc4MDciLCJpYXQiOjE3NDQ0NzE4NjEsImV4cCI6MTc0NDQ3MzA2MX0.hrDCQGgpoVYFbjHwtjWW0vCPQVLi9uheZ6M9CvbR2Q_hrLKX0luPIpl81ZvYlU0T1BB78XavbzUkBJAMNITmNk3yhFTfbB469xCdtGyxAicJAWHIJIINS35h4ahyChViE0HfvIIvDlQ-RiDE38R_-_QC98DOvlsTUgjtloo0QLrkXq-JGiHsEdULDUDmTLji3pvtGFDCpZukyGZdMrYR-DMUNMfq5ZBuF2T3e_2uRknmu18D16azOQPEqUxqZ9B0qo17o7zJOPEjACWAEZRdZfojt-0TRo9j6w0eM66uBJ1IOGhxR7HkIyNhGhIk790yE13XQq7x2wI0s_SDivY4bA",
     "newPassword": "180324",
@@ -70,7 +70,7 @@ Content-Type: application/json
 
 ### change password
 POST http://localhost:8080/api/v1/users/change-password
-Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3Zjc0YzE5NTcwNzk3YmUxNWM1NzgwNyIsInVzZXJuYW1lIjoiMTEyMDExOTY3MjA0NjQ5NjE1MDQ0IiwiaWF0IjoxNzQ0NDcyNTc2LCJleHAiOjE3NDQ0NzQzNzZ9.fERENai7giIQUI6xsSOzMC3-e3iaOdO0eb-Ij1wr3yWiSam176ikAEn42yun5AHPoUlVdoAWp5-MsL4lmpAkWuvrkwJtGEKQ3jCjMte9oToJs4zZmatnOt-jrFAwv3oRbJ49G-pxVvYdfWBa7jTzPeKDgoXvoDPBW4paxG0Iv1H8hsx7sfgc076Z0os5ewPHTf0HhZ6c7FO_gf8NMnix4fmiSuLPbtitoFLlIT-Nsn0jBO-NwvtC5uOgWjJ0k79G0Os9p4Lb6KCXpT0bMD-xFzWMCts_AMc95SHnL8BPGkLIcbuBYvUmt-TkUHbKsKYe-2mTp1vStLTjNcR_6qSdMQ 
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY3Zjc0YzE5NTcwNzk3YmUxNWM1NzgwNyIsInVzZXJuYW1lIjoiMTEyMDExOTY3MjA0NjQ5NjE1MDQ0IiwiaWF0IjoxNzQ0NDcyNTc2LCJleHAiOjE3NDQ0NzQzNzZ9.fERENai7giIQUI6xsSOzMC3-e3iaOdO0eb-Ij1wr3yWiSam176ikAEn42yun5AHPoUlVdoAWp5-MsL4lmpAkWuvrkwJtGEKQ3jCjMte9oToJs4zZmatnOt-jrFAwv3oRbJ49G-pxVvYdfWBa7jTzPeKDgoXvoDPBW4paxG0Iv1H8hsx7sfgc076Z0os5ewPHTf0HhZ6c7FO_gf8NMnix4fmiSuLPbtitoFLlIT-Nsn0jBO-NwvtC5uOgWjJ0k79G0Os9p4Lb6KCXpT0bMD-xFzWMCts_AMc95SHnL8BPGkLIcbuBYvUmt-TkUHbKsKYe-2mTp1vStLTjNcR_6qSdMQ
 Content-Type: application/json
 
 {

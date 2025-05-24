@@ -42,6 +42,7 @@ const schema = z.object({
 	GOOGLE_CLIENT_ID_IOS: z.string(),
 	ACCESS_TOKEN_EXPIRY: z.string().default("30m"),
 	COOKIE_TOKEN_EXPIRY: z.string().default("1800000"),
+	VERSION: z.string().default("v1"),
 });
 
 const config = schema.parse(process.env);

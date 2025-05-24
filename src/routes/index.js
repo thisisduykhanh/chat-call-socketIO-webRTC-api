@@ -2,12 +2,13 @@ require("dotenv").config();
 const rateLimit = require("@/middleware/rateLimit.middleware");
 const apiRouter_v1 = require("./v1/index");
 const passport = require("passport");
+const config = require("~/config");
 
 const { createRefreshToken } = require("@/services/token.service");
 const { signAccessToken } = require("@/auth/jwt");
 
 const apiRouter = (app) => {
-	app.use(`/api/${process.env.Version}`, rateLimit, apiRouter_v1);
+	app.use(`/api/${config.VERSION}`, rateLimit, apiRouter_v1);
 
 	app.get("/google", rateLimit, passport.authenticate("google"));
 
