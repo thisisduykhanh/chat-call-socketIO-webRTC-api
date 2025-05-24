@@ -11,6 +11,7 @@ const MediaSchema = new mongoose.Schema(
 		mimeType: { type: String },
 		fileName: { type: String },
 		fileSize: { type: Number },
+		blurHash: { type: String },
 	},
 	{ _id: false },
 );
