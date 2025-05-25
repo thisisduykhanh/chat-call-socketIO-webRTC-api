@@ -113,7 +113,7 @@ const MessageSchema = new mongoose.Schema(
 		// Trạng thái
 		status: {
 			type: String,
-			enum: ["sent", "delivered", "seen"],
+			enum: ["sent", "delivered", "seen", "recalled"],
 			default: "sent",
 		},
 

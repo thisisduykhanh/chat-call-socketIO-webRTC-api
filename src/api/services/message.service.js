@@ -112,16 +112,41 @@ class MessageService {
             throw CreateError.NotFound("Message not found.");
         }
 
-        if (message.isDeletedForEveryone) {
+        if (message.deletedFor.includes(userId)) {
             throw CreateError.NotFound("Message already deleted.");
         }
 
-        message.isDeletedForEveryone = true;
+        message.deletedFor.push(userId);
 
         await message.save();
+        
 
-        return { success: true, message: "Message deleted successfully." };
+        return { success: true, message };
     }
+
+    async recallMessage({messageId, userId}) {
+
+        const message = await Message.findById(messageId);
+        if (!message) {
+            throw CreateError.NotFound("Message not found.");
+        }
+        if (!message.sender.equals(userId)) {
+            throw CreateError.Forbidden(
+                "You are not allowed to recall this message."
+            );
+        }
+        if (message.isDeletedForEveryone) {
+            throw CreateError.NotFound("Message already recalled.");
+        }
+        message.isDeletedForEveryone = true;
+        message.content = "This message has been recalled.";
+        message.status = "recalled";
+        message.media = []; // Xóa tất cả media
+        message.type = "text"; // Đặt lại type về 'text'
+        await message.save();
+        return { success: true, message };
+    }
+
 
     async updateMessageContent(messageId, userId, newContent) {
         const message = await Message.findById(messageId);
@@ -180,20 +205,8 @@ class MessageService {
             }
         }
 
-			const cacheKey = `messages:${conversation._id}:cursor:${cursor || 'initial'}:limit:${limit}`;
 
-				// Kiểm tra cache Redis
-				// const cachedMessages = await lRangeAsync(cacheKey, 0, -1);
-				// if (cachedMessages && cachedMessages.length > 0) {
-				// 	console.log("Messages fetched from Redis cache");
-				// 	return {
-				// 		messages: cachedMessages.map(msg => JSON.parse(msg)),
-				// 		nextCursor: await getAsync(`messages:${conversation._id}:nextCursor:${cursor || 'initial'}`),
-				// 		total: parseInt(await getAsync(`messages:${conversation._id}:total`)) || 0,
-				// 	};
-				// }
-
-        const query = { conversation: conversation._id };
+        const query = { conversation: conversation._id, deletedFor: { $ne: userId } };
         if (cursor) {
 			console.log("Cursor:", cursor);
             query._id = { $lt: cursor }; // Lấy các tin nhắn có _id lớn hơn cursor
@@ -227,14 +240,6 @@ class MessageService {
         const totalMessages = await Message.countDocuments({
             conversation: conversation._id,
         });
-
-        // Lưu trữ tin nhắn vào cache
-        await rPushAsync(cacheKey, messages);
-		await setAsync(`messages:${conversation._id}:total`, totalMessages.toString());
-
-		if (nextCursor) {
-        await setAsync(`messages:${conversation._id}:nextCursor:${cursor || 'initial'}`, nextCursor, 3600); // TTL 1 giờ
-    }
 
         console.log("message from db");
 

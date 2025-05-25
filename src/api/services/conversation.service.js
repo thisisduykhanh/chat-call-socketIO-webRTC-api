@@ -1,7 +1,6 @@
 const Conversation = require("@/models/conversation.model");
 const Message = require("@/models/message.model");
 
-const { delAsync } = require("~/config/redis");
 
 class ConversationService {
 	async markMessagesAsRead(conversationId, userId) {
@@ -41,7 +40,6 @@ class ConversationService {
 			{ $set: { "participants.$.lastSeenAt": now } },
 		);
 
-		await delAsync(`messages:${conversationId}`);
 
 		return messagesToUpdate.map((msg) => ({
 			...msg,
@@ -79,7 +77,6 @@ class ConversationService {
 				},
 			});
 
-			await delAsync(`messages:${convo._id}`);
 		}
 
 		if (bulkOps.length > 0) {

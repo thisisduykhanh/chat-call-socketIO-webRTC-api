@@ -2,12 +2,17 @@ const cloudinary = require("~/config/cloudinary");
 const streamifier = require("streamifier");
 const sharp = require("sharp");
 const { encode } = require("blurhash");
+const ffmpeg = require("fluent-ffmpeg");
+const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
+ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const CreateError = require("http-errors");
 const s3Client = require("~/config/cloudflare");
 const { PutObjectCommand } = require("@aws-sdk/client-s3");
 const { v4: uuidv4 } = require("uuid");
-const path = require("node:path");
+const path = require("path");
+const { tmpdir } = require("os");
+const fs = require("fs");
 
 // Supported MIME types for validation
 const allowedMimeTypes = [
@@ -88,11 +93,15 @@ async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
             blurHash = await generateBlurHash(buffer);
         } else if (isVideo) {
             try {
-                const thumbnailBuffer = await sharp(buffer)
-                    .resize({ width: 100 }) // Kích thước nhỏ để tối ưu
-                    .jpeg() // Chuyển sang JPEG để tạo BlurHash
-                    .toBuffer();
+                const thumbnailBuffer = await extractVideoThumbnail(
+                    buffer,
+                    fileId
+                );
                 blurHash = await generateBlurHash(thumbnailBuffer);
+
+				console.log("Video thumbnail buffer size:", thumbnailBuffer.length);
+				console.log("BlurHash for video thumbnail:", blurHash);
+
             } catch (error) {
                 console.error("Error generating video thumbnail:", error);
             }
@@ -112,7 +121,7 @@ async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
                     fileName: originalname,
                     fileSize: result.bytes,
                     mimeType: mimetype,
-					blurHash: blurHash,
+                    blurHash: blurHash,
                 });
             }
         );
@@ -174,6 +183,34 @@ async function generateBlurHash(buffer) {
         console.error("Error generating BlurHash:", error);
         return null; // Trả về null nếu lỗi
     }
+}
+
+function extractVideoThumbnail(videoBuffer, fileId) {
+    return new Promise((resolve, reject) => {
+        const inputPath = path.join(tmpdir(), `${fileId}-video.mp4`);
+        const outputPath = path.join(tmpdir(), `${fileId}-thumbnail.jpg`);
+        fs.writeFileSync(inputPath, videoBuffer);
+
+        ffmpeg(inputPath)
+            .screenshots({
+                timestamps: ["00:00:01"],
+                filename: path.basename(outputPath),
+                folder: path.dirname(outputPath),
+                size: "320x240",
+            })
+            .on("end", () => {
+                const thumbnailBuffer = fs.readFileSync(outputPath);
+                // Cleanup temp files
+                fs.unlinkSync(inputPath);
+                fs.unlinkSync(outputPath);
+                resolve(thumbnailBuffer);
+            })
+            .on("error", (err) => {
+                console.error("FFmpeg error:", err);
+                fs.unlinkSync(inputPath);
+                reject(err);
+            });
+    });
 }
 
 module.exports = { handleFileUpload };
