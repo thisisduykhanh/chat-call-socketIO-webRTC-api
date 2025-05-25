@@ -70,9 +70,9 @@ function createPeerConnection(targetUserId) {
 	peerConnections[targetUserId] = peerConnection;
 
 	// Thêm stream vào peer connection
-	localStream
-		.getTracks()
-		.forEach((track) => peerConnection.addTrack(track, localStream));
+	for (const track of localStream.getTracks()) {
+		peerConnection.addTrack(track, localStream);
+	}
 
 	// Xử lý ICE candidates
 	peerConnection.onicecandidate = (event) => {
@@ -109,7 +109,7 @@ function createPeerConnection(targetUserId) {
 	return peerConnection;
 }
 
-socket.on("call-incoming", ({ initiatorId: caller, conversationId }) => {
+socket.on("call-incoming", ({ initiatorId: caller }) => {
 	initiatorId = caller;
 	callerIdSpan.textContent = caller;
 	callPopup.style.display = "block";
@@ -185,7 +185,9 @@ socket.on("user-disconnected", ({ userId }) => {
 });
 
 socket.on("call-ended", () => {
-	Object.values(peerConnections).forEach((pc) => pc.close());
+	for (const pc of Object.values(peerConnections)) {
+		pc.close();
+	}
 	peerConnections = {};
 	while (videosContainer.children.length > 1) {
 		videosContainer.removeChild(videosContainer.lastChild);

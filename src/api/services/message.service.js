@@ -3,114 +3,107 @@ const Conversation = require("@/models/conversation.model");
 const CreateError = require("http-errors");
 const conversationService = require("@/services/conversation.service");
 
-const { rPushAsync, lRangeAsync, setAsync, getAsync } = require("~/config/redis");
+const { rPushAsync, setAsync } = require("~/config/redis");
 
 class MessageService {
-    async createMessage({
-        senderId,
-        receiverId = null,
-        conversationId = null,
-        content,
-        files = [],
-        type,
-        location = null,
-        ...rest
-    }) {
-        let conversation;
+	async createMessage({
+		senderId,
+		receiverId = null,
+		conversationId = null,
+		content,
+		files = [],
+		type,
+		location = null,
+		...rest
+	}) {
+		let conversation;
 
-        if (conversationId) {
-            console.log("Conversation ID:", conversationId);
-            conversation = await Conversation.findById(conversationId);
+		if (conversationId) {
+			console.log("Conversation ID:", conversationId);
+			conversation = await Conversation.findById(conversationId);
 
-            if (!conversation)
-                throw new CreateError.NotFound("Conversation not found");
+			if (!conversation)
+				throw new CreateError.NotFound("Conversation not found");
 
-            const isParticipant = conversation.participants.some(
-                (p) => p.user && p.user._id.toString() === senderId.toString()
-            );
+			const isParticipant = conversation.participants.some(
+				(p) => p.user && p.user._id.toString() === senderId.toString(),
+			);
 
-            if (!isParticipant) {
-                throw new CreateError.Forbidden(
-                    "You are not a participant in this conversation"
-                );
-            }
+			if (!isParticipant) {
+				throw new CreateError.Forbidden(
+					"You are not a participant in this conversation",
+				);
+			}
 
-            if (conversation.participants.length === 2) {
-                const receiver = conversation.participants.find(
-                    (p) =>
-                        p.user && p.user._id.toString() !== senderId.toString()
-                );
-                if (receiver) {
-                    receiverId = receiver.user._id;
-                }
-            }
-        } else if (receiverId) {
-            console.log("Receiver ID:", receiverId);
-            conversation =
-                await conversationService.getOrCreateOneToOneConversation(
-                    senderId,
-                    receiverId
-                );
-        } else {
-            throw new CreateError.BadRequest(
-                "Missing receiverId or conversationId"
-            );
-        }
+			if (conversation.participants.length === 2) {
+				const receiver = conversation.participants.find(
+					(p) => p.user && p.user._id.toString() !== senderId.toString(),
+				);
+				if (receiver) {
+					receiverId = receiver.user._id;
+				}
+			}
+		} else if (receiverId) {
+			console.log("Receiver ID:", receiverId);
+			conversation = await conversationService.getOrCreateOneToOneConversation(
+				senderId,
+				receiverId,
+			);
+		} else {
+			throw new CreateError.BadRequest("Missing receiverId or conversationId");
+		}
 
-        if (
-            type === "location" &&
-            (!location || !location.lat || !location.lng)
-        ) {
-            throw new CreateError.BadRequest("Invalid location data");
-        }
+		if (type === "location" && (!location || !location.lat || !location.lng)) {
+			throw new CreateError.BadRequest("Invalid location data");
+		}
 
-        const messageData = {
-            conversation: conversation._id,
-            sender: senderId,
-            receiver: receiverId || null,
-            content,
-            location,
-            type,
-            ...rest,
-        };
+		const messageData = {
+			conversation: conversation._id,
+			sender: senderId,
+			receiver: receiverId || null,
+			content,
+			location,
+			type,
+			...rest,
+		};
 
-        if (files.length > 0) {
-            messageData.media = files;
-        }
+		if (files.length > 0) {
+			messageData.media = files;
+		}
 
-        const message = new Message(messageData);
+		const message = new Message(messageData);
 
-        conversation.lastMessage = message._id;
+		conversation.lastMessage = message._id;
 
-        await Promise.all([message.save(), conversation.save()]);
+		await Promise.all([message.save(), conversation.save()]);
 
-        await message.populate([
-            { path: "receiver", select: "name avatarUrl" },
-            { path: "sender", select: "name avatarUrl" },
-            { path: "conversation", select: "name avatar" },
-        ]);
+		await message.populate([
+			{ path: "receiver", select: "name avatarUrl" },
+			{ path: "sender", select: "name avatarUrl" },
+			{ path: "conversation", select: "name avatar" },
+		]);
 
-        return message;
-    }
+		return message;
+	}
 
-    async getMessages(conversationId) {
-        const conversation = await Conversation.findById(conversationId);
-        if (!conversation) {
-            throw CreateError.NotFound("Conversation not found.");
-        }
+	async getMessages(conversationId) {
+		const conversation = await Conversation.findById(conversationId);
+		if (!conversation) {
+			throw CreateError.NotFound("Conversation not found.");
+		}
 
-        const messages = await Message.find({
-            conversation: conversationId,
-        }).sort({ createdAt: 1 });
+		const messages = await Message.find({
+			conversation: conversationId,
+		}).sort({ createdAt: 1 });
 
-        return messages;
-    }
+		return messages;
+	}
 
-    async deleteMessage(messageId, userId) {
-        const message = await Message.findById(messageId);
-        if (!message || !message.sender.equals(userId)) {
-            throw CreateError.NotFound("Message not found.");
-        }
+	async deleteMessage(messageId, userId) {
+		const message = await Message.findById(messageId);
+		if (!message || !message.sender.equals(userId)) {
+			throw CreateError.NotFound("Message not found.");
+		}
 
         if (message.deletedFor.includes(userId)) {
             throw CreateError.NotFound("Message already deleted.");
@@ -154,127 +147,124 @@ class MessageService {
             throw CreateError.NotFound("Message not found.");
         }
 
-        if (!message.sender.equals(userId))
-            throw CreateError.Forbidden(
-                "You are not allowed to edit this message."
-            );
+		if (!message.sender.equals(userId))
+			throw CreateError.Forbidden("You are not allowed to edit this message.");
 
-        if (!message.isEdited) {
-            message.originalContent = message.content;
-        }
+		if (!message.isEdited) {
+			message.originalContent = message.content;
+		}
 
-        message.content = newContent;
-        message.isEdited = true;
-        message.editedAt = new Date();
+		message.content = newContent;
+		message.isEdited = true;
+		message.editedAt = new Date();
 
-        return await message.save();
-    }
+		return await message.save();
+	}
 
-    async getMessagesByConversationId({
-        conversationId,
-        receiverId,
-        userId,
-        cursor,
-        limit = 50,
-    }) {
-        let conversation;
+	async getMessagesByConversationId({
+		conversationId,
+		receiverId,
+		userId,
+		cursor,
+		limit = 50,
+	}) {
+		let conversation;
 
-        if (receiverId) {
-            conversation = await Conversation.findOne({
-                "participants.user": { $all: [userId, receiverId] },
-                $expr: { $eq: [{ $size: "$participants" }, 2] },
-                isGroup: false,
-            });
-            if (!conversation) {
-                throw CreateError.NotFound("Conversation not found.");
-            }
-        } else {
-            conversation = await Conversation.findById(conversationId);
-            if (!conversation) {
-                throw CreateError.NotFound("Conversation not found.");
-            }
+		if (receiverId) {
+			conversation = await Conversation.findOne({
+				"participants.user": { $all: [userId, receiverId] },
+				$expr: { $eq: [{ $size: "$participants" }, 2] },
+				isGroup: false,
+			});
+			if (!conversation) {
+				throw CreateError.NotFound("Conversation not found.");
+			}
+		} else {
+			conversation = await Conversation.findById(conversationId);
+			if (!conversation) {
+				throw CreateError.NotFound("Conversation not found.");
+			}
 
-            const isInConversation = conversation.participants.some(
-                (p) => p.user && p.user.toString() === userId
-            );
+			const isInConversation = conversation.participants.some(
+				(p) => p.user && p.user.toString() === userId,
+			);
 
-            if (!isInConversation) {
-                throw CreateError.Forbidden(
-                    "You are not a member of this conversation."
-                );
-            }
-        }
+			if (!isInConversation) {
+				throw CreateError.Forbidden(
+					"You are not a member of this conversation.",
+				);
+			}
+		}
 
 
         const query = { conversation: conversation._id, deletedFor: { $ne: userId } };
         if (cursor) {
 			console.log("Cursor:", cursor);
-            query._id = { $lt: cursor }; // Lấy các tin nhắn có _id lớn hơn cursor
-
-        }
+			query._id = { $lt: cursor }; // Lấy các tin nhắn có _id lớn hơn cursor
+		}
 
 		console.log("limit:", limit);
 
 		limit = Number(limit);
-		if (isNaN(limit) || limit < 1) limit = 50;
+		if (Number.isNaN(limit) || limit < 1) limit = 50;
 
-        const messages = await Message.find(query)
-            .sort({ _id: -1 })
-            .limit(limit + 1)
-            .populate({
-                path: "sender",
-                select: "avatarUrl name", // CHỈ lấy trường avatar
-            });
+		const messages = await Message.find(query)
+			.sort({ _id: -1 })
+			.limit(limit + 1)
+			.populate({
+				path: "sender",
+				select: "avatarUrl name", // CHỈ lấy trường avatar
+			});
 
-        if (!messages || messages.length === 0) {
-            throw CreateError.NotFound("No messages found.");
-        }
+		if (!messages || messages.length === 0) {
+			throw CreateError.NotFound("No messages found.");
+		}
 
-        // Xác định nextCursor
-        let nextCursor = null;
-        if (messages.length > limit) {
-            nextCursor = messages[messages.length - 1]._id.toString();
-            messages.pop(); // Xóa tin nhắn thừa (dùng để xác định cursor)
-        }
+		// Xác định nextCursor
+		let nextCursor = null;
+		if (messages.length > limit) {
+			nextCursor = messages[messages.length - 1]._id.toString();
+			messages.pop(); // Xóa tin nhắn thừa (dùng để xác định cursor)
+		}
 
-        const totalMessages = await Message.countDocuments({
-            conversation: conversation._id,
-        });
+		const totalMessages = await Message.countDocuments({
+			conversation: conversation._id,
+		});
 
         console.log("message from db");
 
-        return {
-            messages,
-            nextCursor,
-            total: totalMessages,
-        };
-    }
+		return {
+			messages,
+			nextCursor,
+			total: totalMessages,
+		};
+	}
 
-    async updateStatusWhenInConversation(receivers, messageId, status) {
-        const update = {
-            $set: { status },
-        };
+	async updateStatusWhenInConversation(receivers, messageId, status) {
+		const update = {
+			$set: { status },
+		};
 
-        // Chỉ cập nhật seenBy nếu là 'seen'
-        if (status === "seen") {
-            update.$addToSet = {
-                seenBy: {
-                    $each: receivers.map((userId) => ({
-                        user: userId,
-                        seenAt: new Date(),
-                    })),
-                },
-            };
-        }
+		// Chỉ cập nhật seenBy nếu là 'seen'
+		if (status === "seen") {
+			update.$addToSet = {
+				seenBy: {
+					$each: receivers.map((userId) => ({
+						user: userId,
+						seenAt: new Date(),
+					})),
+				},
+			};
+		}
 
-        const updatedMessage = await Message.findOneAndUpdate(
-            { _id: messageId },
-            update,
-            { new: true }
-        );
+		const updatedMessage = await Message.findOneAndUpdate(
+			{ _id: messageId },
+			update,
+			{ new: true },
+		);
 
-        return updatedMessage;
-    }
+		return updatedMessage;
+	}
 }
 
 module.exports = new MessageService();

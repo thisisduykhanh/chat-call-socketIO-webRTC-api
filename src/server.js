@@ -1,8 +1,9 @@
 const app = require("~/app");
+const config = require("~/config");
 
-const port = process.env.PORT || 3000;
-const hostName = process.env.HOST_NAME || "0.0.0.0";
-const version = process.env.VERSION || "v1";
+const port = config.PORT;
+const hostName = config.HOST_NAME;
+const version = config.VERSION;
 
 const handleExit = (signal) => {
 	console.info(`${signal} signal received.`);
