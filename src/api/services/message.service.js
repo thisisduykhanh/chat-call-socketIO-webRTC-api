@@ -102,6 +102,7 @@ class MessageService {
             { path: "receiver", select: "name avatarUrl" },
             { path: "sender", select: "name avatarUrl" },
             { path: "conversation", select: "name avatar" },
+            { path: "replyTo", select: "content sender" },
         ]);
 
         return message;
@@ -284,10 +285,16 @@ class MessageService {
         const messages = await Message.find(query)
             .sort({ _id: -1 })
             .limit(limit + 1)
-            .populate({
-                path: "sender",
-                select: "avatarUrl name", // CHỈ lấy trường avatar
-            });
+            .populate([
+                {
+                    path: "sender",
+                    select: "avatarUrl name",
+                },
+                {
+                    path: "replyTo",
+                    select: "content sender",
+                },
+            ]);
 
         if (!messages || messages.length === 0) {
             throw CreateError.NotFound("No messages found.");
