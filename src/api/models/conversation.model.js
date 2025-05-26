@@ -29,6 +29,16 @@ const ConversationSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Message",
         },
+
+        lastMessageMap: {
+            type: Map,
+            of: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Message",
+            },
+            default: {},
+        },
+
         settings: {
             onlyAdminCanSend: { type: Boolean, default: false },
             allowPin: { type: Boolean, default: true },
