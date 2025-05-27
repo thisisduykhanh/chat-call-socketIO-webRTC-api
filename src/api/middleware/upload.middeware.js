@@ -16,92 +16,92 @@ const fs = require("fs");
 
 // Supported MIME types for validation
 const allowedMimeTypes = [
-	"application/pdf", // PDF
-	"application/vnd.ms-excel", // Excel (.xls)
-	"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // Excel (.xlsx)
-	"text/csv", // CSV
-	"text/tab-separated-values", // TSV
-	"application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
-	"application/zip", // ZIP
-	"audio/mpeg", // MP3
-	"audio/mp4", // M4A (also covers audio/m4a)
+    "application/pdf", // PDF
+    "application/vnd.ms-excel", // Excel (.xls)
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // Excel (.xlsx)
+    "text/csv", // CSV
+    "text/tab-separated-values", // TSV
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // DOCX
+    "application/zip", // ZIP
+    "audio/mpeg", // MP3
+    "audio/mp4", // M4A (also covers audio/m4a)
 ];
 
 async function handleFileUpload(req, res, next) {
-	try {
-		const files = req.files;
-		if (!files || files.length === 0) {
-			throw new CreateError.BadRequest("No files uploaded.");
-		}
-
-		const uploadedFiles = await Promise.all(
-			files.map(async (file) => {
-				const { mimetype, buffer, originalname, size } = file;
-
-				const fileId = uuidv4();
-
-				if (
-					!allowedMimeTypes.includes(mimetype) &&
-					!mimetype.startsWith("image/") &&
-					!mimetype.startsWith("video/")
-				) {
-					throw new CreateError.BadRequest(
-						`Unsupported file type: ${mimetype}`,
-					);
-				}
-
-				if (mimetype.startsWith("image/") || mimetype.startsWith("video/")) {
-					// Upload to Cloudinary
-					return await uploadToCloudinary(
-						buffer,
-						mimetype,
-						fileId,
-						originalname,
-					);
-				}
-				// Upload to Cloudflare R2
-				return await uploadToCloudflareR2(
-					buffer,
-					mimetype,
-					originalname,
-					size,
-					fileId,
-				);
-			}),
-		);
-
-		console.log("Uploaded files:", uploadedFiles);
-
-		res.json({ success: true, files: uploadedFiles });
-	} catch (error) {
-		console.error("Upload error:", error);
-		next(new CreateError.InternalServerError("File upload failed."));
-	}
-}
-async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
-	const isImage = mimetype.startsWith("image");
-	const isVideo = mimetype.startsWith("video");
-
-        // Tạo BlurHash (cho ảnh hoặc thumbnail video)
-        let blurHash = null;
-        if (isImage) {
-            blurHash = await generateBlurHash(buffer);
-        } else if (isVideo) {
-            try {
-                const thumbnailBuffer = await extractVideoThumbnail(
-                    buffer,
-                    fileId
-                );
-                blurHash = await generateBlurHash(thumbnailBuffer);
-
-				console.log("Video thumbnail buffer size:", thumbnailBuffer.length);
-				console.log("BlurHash for video thumbnail:", blurHash);
-
-            } catch (error) {
-                console.error("Error generating video thumbnail:", error);
-            }
+    try {
+        const files = req.files;
+        if (!files || files.length === 0) {
+            throw new CreateError.BadRequest("No files uploaded.");
         }
 
+        const uploadedFiles = await Promise.all(
+            files.map(async (file) => {
+                const { mimetype, buffer, originalname, size } = file;
+
+                const fileId = uuidv4();
+
+                if (
+                    !allowedMimeTypes.includes(mimetype) &&
+                    !mimetype.startsWith("image/") &&
+                    !mimetype.startsWith("video/")
+                ) {
+                    throw new CreateError.BadRequest(
+                        `Unsupported file type: ${mimetype}`
+                    );
+                }
+
+                if (
+                    mimetype.startsWith("image/") ||
+                    mimetype.startsWith("video/")
+                ) {
+                    // Upload to Cloudinary
+                    return await uploadToCloudinary(
+                        buffer,
+                        mimetype,
+                        fileId,
+                        originalname
+                    );
+                }
+                // Upload to Cloudflare R2
+                return await uploadToCloudflareR2(
+                    buffer,
+                    mimetype,
+                    originalname,
+                    size,
+                    fileId
+                );
+            })
+        );
+
+        console.log("Uploaded files:", uploadedFiles);
+
+        res.json({ success: true, files: uploadedFiles });
+    } catch (error) {
+        console.error("Upload error:", error);
+        next(new CreateError.InternalServerError("File upload failed."));
+    }
+}
+async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
+    const isImage = mimetype.startsWith("image");
+    const isVideo = mimetype.startsWith("video");
+
+    // Tạo BlurHash (cho ảnh hoặc thumbnail video)
+    let blurHash = null;
+    if (isImage) {
+        blurHash = await generateBlurHash(buffer);
+    } else if (isVideo) {
+        try {
+            const thumbnailBuffer = await extractVideoThumbnail(buffer, fileId);
+            blurHash = await generateBlurHash(thumbnailBuffer);
+
+            console.log("Video thumbnail buffer size:", thumbnailBuffer.length);
+            console.log("BlurHash for video thumbnail:", blurHash);
+        } catch (error) {
+            console.error("Error generating video thumbnail:", error);
+        }
+    }
+
+    return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
             {
                 folder: "uploads",
@@ -121,62 +121,63 @@ async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
             }
         );
 
-		streamifier.createReadStream(buffer).pipe(uploadStream);
-	}
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+    });
+}
 
 async function uploadToCloudflareR2(
-	buffer,
-	mimetype,
-	originalname,
-	size,
-	fileId,
+    buffer,
+    mimetype,
+    originalname,
+    size,
+    fileId
 ) {
-	const timestamp = Date.now();
-	const sanitizedFileName = originalname.replace(/\s+/g, "_");
-	const fileKey = `uploads/${timestamp}_${sanitizedFileName}`;
+    const timestamp = Date.now();
+    const sanitizedFileName = originalname.replace(/\s+/g, "_");
+    const fileKey = `uploads/${timestamp}_${sanitizedFileName}`;
 
-	const command = new PutObjectCommand({
-		Bucket: process.env.R2_BUCKET_NAME,
-		Key: fileKey,
-		Body: buffer,
-		ContentType: mimetype,
-	});
+    const command = new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: fileKey,
+        Body: buffer,
+        ContentType: mimetype,
+    });
 
-	await s3Client.send(command);
+    await s3Client.send(command);
 
-	// const fileUrl = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
+    // const fileUrl = `${process.env.R2_PUBLIC_URL}/${fileKey}`;
 
-	return {
-		storage: "cloudflare",
-		fileId: fileId,
-		fileKey: fileKey,
-		fileName: originalname,
-		fileSize: size,
-		mimeType: mimetype,
-	};
+    return {
+        storage: "cloudflare",
+        fileId: fileId,
+        fileKey: fileKey,
+        fileName: originalname,
+        fileSize: size,
+        mimeType: mimetype,
+    };
 }
 
 async function generateBlurHash(buffer) {
-	try {
-		// Dùng sharp để lấy dữ liệu ảnh (width, height, pixels)
-		const { data, info } = await sharp(buffer)
-			.raw()
-			.ensureAlpha()
-			.toBuffer({ resolveWithObject: true });
+    try {
+        // Dùng sharp để lấy dữ liệu ảnh (width, height, pixels)
+        const { data, info } = await sharp(buffer)
+            .raw()
+            .ensureAlpha()
+            .toBuffer({ resolveWithObject: true });
 
-		// Tạo BlurHash với componentX=4, componentY=3 (độ chi tiết trung bình)
-		const blurHash = encode(
-			new Uint8ClampedArray(data),
-			info.width,
-			info.height,
-			4,
-			3,
-		);
-		return blurHash;
-	} catch (error) {
-		console.error("Error generating BlurHash:", error);
-		return null; // Trả về null nếu lỗi
-	}
+        // Tạo BlurHash với componentX=4, componentY=3 (độ chi tiết trung bình)
+        const blurHash = encode(
+            new Uint8ClampedArray(data),
+            info.width,
+            info.height,
+            4,
+            3
+        );
+        return blurHash;
+    } catch (error) {
+        console.error("Error generating BlurHash:", error);
+        return null; // Trả về null nếu lỗi
+    }
 }
 
 function extractVideoThumbnail(videoBuffer, fileId) {
