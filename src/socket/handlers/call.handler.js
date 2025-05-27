@@ -24,6 +24,8 @@ const {
     sMembersAsync,
     sRemAsync,
     updateStartTimeAsync,
+    getKeysAsync,
+    sIsMemberAsync
 } = require("~/config/redis");
 
 module.exports = (socket, io) => {
@@ -74,6 +76,64 @@ module.exports = (socket, io) => {
             const participantIds = participants
                 .map((p) => p._id.toString())
                 .filter((id) => id !== userId);
+
+            if (participants.length === 2) {
+                const receiverId = participantIds[0]; // Trong 1:1, chỉ có một người nhận
+                const senderSettings = await UserSettingsService.getSetting(
+                    userId,
+                    "privacySettings.blockedUsers"
+                );
+                const receiverSettings = await UserSettingsService.getSetting(
+                    receiverId,
+                    "privacySettings.blockedUsers"
+                );
+
+                if (
+                    senderSettings["privacySettings.blockedUsers"].includes(
+                        receiverId
+                    )
+                ) {
+                    await delAsync(callKey);
+                    await delAsync(participantsKey);
+                    socket.leave(callKey);
+                    socket.callKey = null;
+                    return socket.emit("call-error", {
+                        message:
+                            "You have blocked this user and cannot call them.",
+                    });
+                }
+                if (
+                    receiverSettings["privacySettings.blockedUsers"].includes(
+                        userId
+                    )
+                ) {
+                    await delAsync(callKey);
+                    await delAsync(participantsKey);
+                    socket.leave(callKey);
+                    socket.callKey = null;
+                    return socket.emit("call-error", {
+                        message:
+                            "You are blocked by this user and cannot call them.",
+                    });
+                }
+            }
+
+             // Kiểm tra xem callee có đang trong cuộc gọi khác
+            for (const participantId of participantIds) {
+                const userCalls = await getKeysAsync(`call:*:participants`);
+                for (const call of userCalls) {
+                    const isInCall = await sIsMemberAsync(call, participantId);
+                    if (isInCall) {
+                        await delAsync(callKey);
+                        await delAsync(participantsKey);
+                        socket.leave(callKey);
+                        socket.callKey = null;
+                        return socket.emit("call-error", {
+                            message: "One or more participants are already in another call.",
+                        });
+                    }
+                }
+            }
 
             let isAnyParticipantOnline = false;
 
@@ -165,12 +225,12 @@ module.exports = (socket, io) => {
                         status: "sent",
                         type: "call",
 
-						callData: {
-							callType: callType || "voice",
-							duration: 0,
-							participants: [userId],
-						},
-						timestamp: Date.now(),
+                        callData: {
+                            callType: callType || "voice",
+                            duration: 0,
+                            participants: [userId],
+                        },
+                        timestamp: Date.now(),
                     };
 
                     const savedMessage = await messageService.createMessage(
@@ -185,7 +245,6 @@ module.exports = (socket, io) => {
                         duration: 0,
                         caller: userId,
                     });
-
 
                     emitToConversation({
                         io,
@@ -362,11 +421,11 @@ module.exports = (socket, io) => {
                     timestamp: endTime.getTime(),
                     status: "sent",
                     type: "call",
-					callData: {
-						callType: callType || "voice",
-						duration: 0,
-						participants: [userId],
-					},
+                    callData: {
+                        callType: callType || "voice",
+                        duration: 0,
+                        participants: [userId],
+                    },
                 };
 
                 const savedMessage = await messageService.createMessage(
@@ -381,7 +440,6 @@ module.exports = (socket, io) => {
                     duration: 0,
                     caller: userId,
                 });
-
 
                 await emitToConversation({
                     io,

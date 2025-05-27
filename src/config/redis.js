@@ -273,6 +273,17 @@ const updateStartTimeAsync = async ({ callKey }) => {
 	}
 };
 
+
+const sIsMemberAsync = async (key, member) => {
+	try {
+		const isMember = await redisClient.sismember(key, member);
+		return isMember === 1;
+	} catch (err) {
+		console.error(`Error checking if member ${member} exists in set ${key}:`, err);
+		throw err;
+	}
+}
+
 module.exports = {
 	setAsync,
 	// setExAsync,
@@ -293,4 +304,5 @@ module.exports = {
 	sRemAsync,
 	hGetAllAsync,
 	updateStartTimeAsync,
+	sIsMemberAsync
 };

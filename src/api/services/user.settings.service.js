@@ -53,20 +53,54 @@ class UserSettingsService {
         return settings;
     }
 
-    async updateSetting(userId, field, value) {
+    async getSetting(userId, field) {
         if (!VALID_FIELDS[field]) {
             throw new CreateError.BadRequest(`Invalid field: ${field}`);
         }
 
-        
+        await this.validateUserId(userId);
+
+        let settings = await UserSettings.findOne(
+            { userId },
+            { [field]: 1, userId: 1 }
+        );
+
+        if (!settings) {
+            // Tạo mới UserSettings nếu không tồn tại
+            settings = new UserSettings({ userId });
+            await settings.save();
+        }
+
+        // Truy cập giá trị field
+        const fieldParts = field.split(".");
+        let result = settings.toObject(); // Chuyển sang plain object để truy cập dễ dàng
+        for (const part of fieldParts) {
+            result = result?.[part];
+            if (result === undefined) {
+                // Trả về giá trị mặc định từ schema nếu field chưa được set
+                const defaultSettings = new UserSettings({ userId });
+                result = fieldParts.reduce(
+                    (obj, p) => obj?.[p],
+                    defaultSettings.toObject()
+                );
+                break;
+            }
+        }
+
+        return { [field]: result };
+    }
+
+    async updateSetting(userId, field, value) {
+        if (!VALID_FIELDS[field]) {
+            throw new CreateError.BadRequest(`Invalid field: ${field}`);
+        }
 
         const fieldConfig = VALID_FIELDS[field];
         if (fieldConfig.type === "boolean" && typeof value !== "boolean") {
             throw new CreateError.BadRequest(
                 `Value for ${field} must be a boolean`
             );
-        }
-        else if (
+        } else if (
             fieldConfig.type === "enum" &&
             !fieldConfig.values.includes(value)
         ) {

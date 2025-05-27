@@ -2,6 +2,7 @@ const Message = require("@/models/message.model");
 const Conversation = require("@/models/conversation.model");
 const CreateError = require("http-errors");
 const conversationService = require("@/services/conversation.service");
+const UserSettingsService = require("@/services/user.settings.service");
 
 const { rPushAsync, setAsync } = require("~/config/redis");
 
@@ -55,6 +56,36 @@ class MessageService {
             throw new CreateError.BadRequest(
                 "Missing receiverId or conversationId"
             );
+        }
+
+        if (conversation.participants.length === 2 && receiverId) {
+            const senderSettings = await UserSettingsService.getSetting(
+                senderId,
+                "privacySettings.blockedUsers"
+            );
+            const receiverSettings = await UserSettingsService.getSetting(
+                receiverId,
+                "privacySettings.blockedUsers"
+            );
+
+            if (
+                senderSettings["privacySettings.blockedUsers"].includes(
+                    receiverId.toString()
+                )
+            ) {
+                throw new CreateError.Forbidden(
+                    "You have blocked this user and cannot send messages to them"
+                );
+            }
+            if (
+                receiverSettings["privacySettings.blockedUsers"].includes(
+                    senderId.toString()
+                )
+            ) {
+                throw new CreateError.Forbidden(
+                    "You are blocked by this user and cannot send messages to them"
+                );
+            }
         }
 
         if (
