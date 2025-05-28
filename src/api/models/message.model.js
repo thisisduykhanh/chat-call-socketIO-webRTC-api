@@ -84,10 +84,15 @@ const MessageSchema = new mongoose.Schema(
 		},
 
 		// Chuyển tiếp từ tin nhắn cũ
-		forwardedFrom: {
+		originalMessageId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: "Message",
 			default: null,
+		},
+
+		isForwarded: {
+			type: Boolean,
+			default: false,
 		},
 
 		// Thread nâng cao

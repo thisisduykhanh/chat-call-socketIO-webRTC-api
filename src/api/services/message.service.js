@@ -421,6 +421,88 @@ class MessageService {
 
         return mediaList;
     }
+
+    async forwardMessage({ messageId, conversationId, userId }) {
+        const message = await Message.findById(messageId);
+        if (!message) {
+            throw CreateError.NotFound("Message not found.");
+        }
+
+        if (!message.conversation) {
+            throw CreateError.NotFound(
+                "Message does not belong to any conversation."
+            );
+        }
+
+        if(message.conversation.toString() === conversationId.toString()) {
+            throw CreateError.BadRequest(
+                "Cannot forward message to the same conversation."
+            );
+        }
+
+        if (message.isDeletedForEveryone) {
+            throw CreateError.NotFound(
+                "Message has been deleted for everyone."
+            );
+        }
+
+        const conversation = await Conversation.findOne({ _id: conversationId, participants: { $elemMatch: { user: userId } } });
+        if (!conversation) {
+            throw CreateError.NotFound("Conversation not found or you are not a participant.");
+        }
+
+
+        if (conversation.participants.length === 2) {
+            const receiver = conversation.participants.find(
+                (p) => p.user && p.user._id.toString() !== userId.toString()
+            );
+            if (receiver) {
+                message.receiver = receiver.user._id;
+            }
+
+            // kiểm tra xem người dùng có bị chặn không
+            const senderSettings = await UserSettingsService.getSetting(
+                userId,
+                "privacySettings.blockedUsers"
+            );
+            if (
+                senderSettings["privacySettings.blockedUsers"].includes(
+                    receiver.user._id.toString()
+                )
+            ) {
+                throw CreateError.Forbidden(
+                    "You have blocked this user and cannot forward messages to them."
+                );
+            }
+
+            const receiverSettings = await UserSettingsService.getSetting(
+                receiver.user._id.toString(),
+                "privacySettings.blockedUsers"
+            );
+            if (
+                receiverSettings["privacySettings.blockedUsers"].includes(
+                    userId.toString()
+                )
+            ) {
+                throw CreateError.Forbidden(
+                    "You are blocked by this user and cannot forward messages to them."
+                );
+            }
+        }
+
+        const newMessage = new Message({
+            content: message.content,
+            sender: userId,
+            receiver: message.receiver || null,
+            conversation: conversationId,
+            type: message.type,
+            media: message.media,
+            originalMessageId: message._id,
+            isForwarded: true,
+        });
+
+        return await newMessage.save();
+    }
 }
 
 module.exports = new MessageService();

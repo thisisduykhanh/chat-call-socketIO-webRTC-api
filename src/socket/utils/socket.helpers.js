@@ -79,7 +79,7 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 
 
 	// tin nhắn 1:1
-	if (receiver._id && conversation._id) {
+	if (receiver?._id && conversation._id) {
 		io.to(receiver._id.toString()).emit("message:new", { message: msg });
 		socket.emit("message:new", {
 			message: msg,

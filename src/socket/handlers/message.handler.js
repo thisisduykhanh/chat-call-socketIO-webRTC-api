@@ -90,13 +90,20 @@ module.exports = (socket, io) => {
     // remove message
     socket.on("message:delete", async ({ messageId }) => {
         try {
-            const { message, lastMessage } = await messageService.deleteMessage(messageId, socket.user.id);
-            socket.emit("message:deleted", { messageId: message._id, lastMessage, conversationId: message.conversation._id });
+            const { message, lastMessage } = await messageService.deleteMessage(
+                messageId,
+                socket.user.id
+            );
+            socket.emit("message:deleted", {
+                messageId: message._id,
+                lastMessage,
+                conversationId: message.conversation._id,
+            });
             console.log(
                 `Message ${messageId} deleted by user ${socket.user.id}`
             );
 
-			console.log(`Last message after deletion: ${lastMessage }`);
+            console.log(`Last message after deletion: ${lastMessage}`);
         } catch (err) {
             console.error(err);
             socket.emit("error", "Không thể xóa tin nhắn");
@@ -261,5 +268,29 @@ module.exports = (socket, io) => {
         console.log(
             `User ${socket.user.id} stopped typing in conversation ${conversationId}`
         );
+    });
+
+    socket.on("message:forward", async ({ messageId, conversationId, tempId }) => {
+        try {
+            const message = await messageService.forwardMessage({
+                messageId,
+                conversationId,
+                userId: socket.user.id,
+            });
+
+            if (message) {
+                emitToConversation({
+                    io,
+                    socket,
+                    msg: message,
+                    tempId: tempId,
+                });
+            } else {
+                socket.emit("error", "Không thể chuyển tiếp tin nhắn");
+            }
+        } catch (err) {
+            console.error(err);
+            socket.emit("error", "Không thể chuyển tiếp tin nhắn");
+        }
     });
 };
