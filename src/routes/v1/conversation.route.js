@@ -4,6 +4,7 @@ const { verifyAccessToken } = require("@/middleware/auth.middleware");
 
 const {
 	getMessagesByConversationId,
+	getMediaByConversationId,
 } = require("@/controllers/message.controller");
 
 const router = express.Router();
@@ -11,5 +12,7 @@ const router = express.Router();
 router.get("/", verifyAccessToken, getConversations);
 
 router.get("/messages", verifyAccessToken, getMessagesByConversationId);
+
+router.get("/media/:conversationId", verifyAccessToken, getMediaByConversationId);
 
 module.exports = router;

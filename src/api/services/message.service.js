@@ -376,6 +376,51 @@ class MessageService {
 
         return updatedMessage;
     }
+
+    async getMediaByConversationId(conversationId, userId) {
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            throw CreateError.NotFound("Conversation not found.");
+        }
+
+        const messages = await Message.find({
+            conversation: conversationId,
+            deletedFor: { $ne: userId },
+            media: { $exists: true, $ne: [] },
+        })
+            .sort({ createdAt: -1 })
+            .populate("sender", "name");
+
+        if (!messages || messages.length === 0) {
+            throw CreateError.NotFound("No media messages found.");
+        }
+
+        const mediaSet = new Set();
+        const mediaList = [];
+
+        messages.forEach((msg) => {
+            if (msg.media && msg.media.length > 0) {
+                msg.media.forEach((media) => {
+                    if (!mediaSet.has(media.fileUrl.toString())) {
+                        mediaSet.add(media.fileUrl.toString());
+                        mediaList.push({
+                            fileId: media.fileId,
+                            type: msg.type,
+                            sender: msg.sender.name,
+                            fileName: media.fileName,
+                            fileSize: media.fileSize,
+                            blurHash: media.blurHash,
+                            mimeType: media.mimeType,
+                            createdAt: msg.createdAt,
+                            url: media.fileUrl,
+                        });
+                    }
+                });
+            }
+        });
+
+        return mediaList;
+    }
 }
 
 module.exports = new MessageService();

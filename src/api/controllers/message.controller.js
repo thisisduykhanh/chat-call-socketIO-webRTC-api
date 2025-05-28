@@ -192,4 +192,18 @@ module.exports = {
 			next(error);
 		}
 	},
+
+	getMediaByConversationId: async (req, res, next) => {
+		try {
+			const { conversationId } = req.params;
+			const userId = req.user.id;
+
+			const mediaMessages =
+				await messageService.getMediaByConversationId(conversationId, userId);
+
+			return res.status(200).json(mediaMessages);
+		} catch (error) {
+			next(error);
+		}
+	},
 };
