@@ -10,6 +10,10 @@ const VALID_FIELDS = {
     "privacySettings.phoneSearchable": { type: "boolean" },
     "privacySettings.readStatus": { type: "boolean" },
     "privacySettings.typingStatus": { type: "boolean" },
+    "privacySettings.blockedUsers": {
+        type: "array",
+        items: { type: "string", format: "uuid" },
+    },
     "dataUsage.autoDownload.photo": {
         type: "enum",
         values: ["none", "wifi", "all"],

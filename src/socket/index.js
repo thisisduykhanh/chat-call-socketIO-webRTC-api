@@ -61,6 +61,11 @@ module.exports = (app, server) => {
 		registerCallHandlers(socket, io);
 
 		socket.on("update-fcm-token", async ({ fcmToken }) => {
+			if (!fcmToken) {
+				console.error("FCM Token is required");
+				return;
+			}
+			await delAsync(`user:${userId}:fcmToken`);
 			await setAsync(`user:${userId}:fcmToken`, fcmToken, 604800); // 7 days
 			console.log(`FCM Token updated for user ${userId}: ${fcmToken}`);
 		});

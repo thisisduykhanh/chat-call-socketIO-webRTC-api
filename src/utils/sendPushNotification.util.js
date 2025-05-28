@@ -23,6 +23,10 @@ const sendMulticastNotification = async (toUserIds, message) => {
 		const validTokens = tokens.filter((t) => t.token).map((t) => t.token);
 		const invalidUsers = tokens.filter((t) => !t.token).map((t) => t.userId);
 
+		console.log(
+			`Valid tokens: ${validTokens}, Invalid users: ${invalidUsers}`,
+		);
+
 		if (invalidUsers.length > 0) {
 			console.log(
 				`Users not registered for push notifications: ${invalidUsers.join(

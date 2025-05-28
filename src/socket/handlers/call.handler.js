@@ -1,4 +1,5 @@
 const ConversationService = require("~/api/services/conversation.service");
+const UserSettingsService = require("~/api/services/user.settings.service");
 
 const { activeCalls } = require("~/socket/state/callState");
 
@@ -141,6 +142,10 @@ module.exports = (socket, io) => {
             for (const participantId of participantIds) {
                 const isOnline = await getAsync(`user:${participantId}:status`);
                 if (isOnline) {
+                    console.log(
+                        `Sending call-incoming to online participant ${participantId}`
+                    );
+
                     isAnyParticipantOnline = true;
                     socket.to(participantId).emit("call-incoming", {
                         initiatorId: userId,
@@ -151,17 +156,9 @@ module.exports = (socket, io) => {
                 }
             }
 
-            // Thông báo cho caller rằng call-incoming đã được gửi
-            if (isAnyParticipantOnline) {
-                socket.emit("call-incoming-sent", { conversationId });
-                console.log(
-                    `Sent call-incoming-sent to caller ${userId} for conversation ${conversationId}`
-                );
-            }
+            console.log(`participantIds: ${participantIds}`);
 
-            console.log(`call type: ${callType}`);
-
-            // Gửi thông báo push cho tất cả người tham gia
+             // Gửi thông báo push cho tất cả người tham gia
             await sendMulticastNotification(participantIds, {
                 type: "call",
                 title: `Incoming ${
@@ -177,6 +174,19 @@ module.exports = (socket, io) => {
                     call_type: callType || "voice",
                 },
             });
+
+            // Thông báo cho caller rằng call-incoming đã được gửi
+            if (isAnyParticipantOnline) {
+                socket.emit("call-incoming-sent", { conversationId });
+                console.log(
+                    `Sent call-incoming-sent to caller ${userId} for conversation ${conversationId}`
+                );
+            }
+
+            console.log(`call type: ${callType}`);
+            
+
+           
 
             console.log(`📞 ${userId} started call in ${conversationId}`);
         } catch (err) {
