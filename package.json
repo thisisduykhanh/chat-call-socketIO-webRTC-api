@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "nodemon -r tsconfig-paths/register ./src/server.js",
+    "build": "tsc",
     "test": "nodemon -r tsconfig-paths/register ./src/server.js",
     "lint": "biome lint src/",
     "lint:fix": "biome lint src/ --write --unsafe",

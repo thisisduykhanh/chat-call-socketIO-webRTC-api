@@ -1,0 +1,54 @@
+
+services:
+  mongo:
+    image: mongo:latest
+    # container_name: chat-mongodb
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    restart: always
+    # healthcheck:
+    #   test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+
+  redis:
+    image: redis:latest
+    # container_name: chat-redis
+    ports:
+      - "6379:6379"
+    restart: always
+    # healthcheck:
+    #   test: ["CMD", "redis-cli", "ping"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+
+  server:
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+      MONGO_URI: mongodb://mongo:27017/chatrealtime
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    ports:
+      - 8080:8080
+    env_file:
+      - .env
+    # depends_on:
+    #   mongo:
+    #     condition: service_healthy
+    #   redis:
+    #     condition: service_healthy
+
+    depends_on:
+      - mongo
+      - redis
+    restart: always
+
+volumes:
+  mongo-data:
+    driver: local
