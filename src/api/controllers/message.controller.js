@@ -51,6 +51,21 @@ module.exports = {
 		}
 	},
 
+	deleteMessages: async (req, res, next) => {
+		try {
+			const { conversationId } = req.body;
+			const userId = req.user.id;
+
+			const result = await messageService.deleteAllMessageInConversation(
+				conversationId,
+				userId
+			);
+			return res.status(200).json(result);
+		} catch (error) {
+			next(error);
+		}
+	},
+
 	editMessage: async (req, res, next) => {
 		try {
 			const { messageId } = req.params;

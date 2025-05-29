@@ -15,6 +15,7 @@ const ConversationSchema = new mongoose.Schema(
                     type: Date,
                     default: new Date(0),
                 },
+                isPinned: { type: Boolean, default: false },
             },
         ],
 

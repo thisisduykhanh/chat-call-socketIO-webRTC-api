@@ -182,6 +182,21 @@ class ConversationService {
 
         return users;
     }
+
+    async pinConversation(conversationId, userId, isPinned) {
+        const conversation = await Conversation.findOneAndUpdate(
+            { _id: conversationId, participants: { $elemMatch: { user: userId } } },
+            { $set: { "participants.$.isPinned": isPinned } },
+            { new: true }
+        ).populate({
+            path: "participants.user",
+            select: "username avatarUrl name",
+        });
+
+        if (!conversation) throw new Error("Conversation not found");
+
+        return conversation;
+    }
 }
 
 module.exports = new ConversationService();

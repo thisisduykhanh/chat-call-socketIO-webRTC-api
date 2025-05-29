@@ -503,6 +503,34 @@ class MessageService {
 
         return await newMessage.save();
     }
+
+    async deleteAllMessageInConversation(conversationId, userId) {
+        const conversation = await Conversation.findOne({
+            _id: conversationId,
+            participants: { $elemMatch: { user: userId } },
+        });
+        if (!conversation) {
+            throw CreateError.NotFound("Conversation not found or you are not a participant.");
+        }
+
+        const messages = await Message.find({
+            conversation: conversationId,
+            deletedFor: { $ne: userId },
+        });
+
+        if (messages.length === 0) {
+            throw CreateError.NotFound("No messages found in this conversation.");
+        }
+
+        for (const message of messages) {
+            if (!message.deletedFor.includes(userId)) {
+                message.deletedFor.push(userId);
+                await message.save();
+            }
+        }
+
+        return { success: true, messageCount: messages.length };
+    }
 }
 
 module.exports = new MessageService();
