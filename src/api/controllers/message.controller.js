@@ -213,6 +213,12 @@ module.exports = {
 			const { conversationId } = req.params;
 			const userId = req.user.id;
 
+			if (!conversationId) {
+				return res
+					.status(400)
+					.json({ message: "conversationId is required" });
+			}
+
 			const mediaMessages =
 				await messageService.getMediaByConversationId(conversationId, userId);
 
