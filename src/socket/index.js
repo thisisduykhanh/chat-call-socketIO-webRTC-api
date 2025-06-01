@@ -21,6 +21,7 @@ const {
 	sCardAsync,
 	sMembersAsync,
 	sRemAsync,
+	getAsync,
 } = require("~/config/redis");
 
 module.exports = (app, server) => {
@@ -44,6 +45,12 @@ module.exports = (app, server) => {
 		console.log(`User ${userId} status updated to online`);
 		await updateMessageStatusForReceivers(userId);
 
+		const fcmToken = await getAsync(`user:${userId}:fcmToken`);
+		if (!fcmToken) {
+			socket.emit("refresh-fcm-token");
+			console.log(`Requested FCM token refresh for user ${userId}`);
+		}
+
 		socket.on("ping-online", async () => {
 			await setAsync(`user:${userId}:status`, "online", 60);
 
@@ -60,14 +67,18 @@ module.exports = (app, server) => {
 
 		registerCallHandlers(socket, io);
 
-		socket.on("update-fcm-token", async ({ fcmToken }) => {
-			if (!fcmToken) {
-				console.error("FCM Token is required");
+		socket.on("update-fcm-token", async ({ fcmToken, platform }) => {
+			if (!fcmToken || !platform) {
+				console.error("FCM Token and platform are required");
 				return;
 			}
 			await delAsync(`user:${userId}:fcmToken`);
+			await delAsync(`user:${userId}:platform`);
+			await setAsync(`user:${userId}:platform`, platform, 604800); // 7 days
 			await setAsync(`user:${userId}:fcmToken`, fcmToken, 604800); // 7 days
-			console.log(`FCM Token updated for user ${userId}: ${fcmToken}`);
+			console.log(
+				`Updated FCM token for user ${userId} on platform ${platform}`,
+			);
 		});
 
 		socket.on("disconnect", async () => {

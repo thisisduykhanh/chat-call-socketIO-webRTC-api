@@ -1,5 +1,6 @@
 const { Redis } = require("ioredis");
 const config = require("./index");
+const activeCalls = require("~/socket/state/callState");
 
 // const redisClient = new Redis(
 // 	url: `redis://${config.REDIS_HOST || "redis"}:${config.REDIS_PORT || 6379}`);
@@ -290,9 +291,31 @@ const sIsMemberAsync = async (key, member) => {
 	}
 }
 
+
+const cleanupRedis = async () => {
+    const keys = await redisClient.keys('user:*:status');
+    for (const key of keys) {
+        const ttl = await redisClient.ttl(key);
+        if (ttl < 0) {
+            await delAsync(key);
+            console.log(`Cleaned up expired key: ${key}`);
+        }
+    }
+    const callKeys = await redisClient.keys('call:*:participants');
+    for (const key of callKeys) {
+        const conversationId = key.split(':')[1];
+        if (!activeCalls.has(conversationId)) {
+            await delAsync(key);
+            await delAsync(`call:${conversationId}`);
+            console.log(`Cleaned up stale call data: ${key}`);
+        }
+    }
+};
+
 module.exports = {
 	setAsync,
 	// setExAsync,
+	cleanupRedis,
 	getAsync,
 	delAsync,
 	lPushAsync,

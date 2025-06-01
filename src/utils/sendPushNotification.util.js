@@ -1,121 +1,226 @@
 const admin = require("~/config/firebase-admin");
 const { getAsync, delAsync } = require("~/config/redis");
+// const apnProvider = require("~/config/apn.config");
+// const apn = require("apn");
+
+const sendFCMNotification = async ({ androidTokens, message, tokens }) => {
+    try {
+        const isCall = message.type === "call";
+
+        const baseNotification = {
+            ...(isCall
+                ? {}
+                : {
+                      notification: {
+                          title: message.title,
+                          body: message.body,
+                      },
+                  }),
+            data: {
+                type: message.type,
+                ...(message.data || {}),
+            },
+            android: {
+                priority: "high",
+                ...(isCall
+                    ? {}
+                    : {
+                          notification: {
+                              sound: "call_ringtone",
+                              channelId: "call_notifications",
+                          },
+                      }),
+            },
+        };
+
+        // const messages = androidTokens.map((token) => ({
+        //     ...baseNotification,
+        //     token,
+        // }));
+
+		const multicastMessage = {
+			tokens: androidTokens,
+			...baseNotification
+		}
+		
+		const response = await admin.messaging().sendEachForMulticast(multicastMessage);
+
+        console.log(`Gửi thông báo FCM cho Android:`, {
+            successCount: response.successCount,
+            failureCount: response.failureCount,
+            responses: response.responses,
+        });
+
+        // Xử lý token không hợp lệ
+        const invalidTokens = [];
+        if (response.failureCount > 0) {
+            response.responses.forEach((res, index) => {
+                if (!res.success && res.error) {
+                    const error = res.error;
+                    if (
+                        error.code === "messaging/invalid-registration-token" ||
+                        error.code === "messaging/registration-token-not-registered"
+                    ) {
+                        const invalidUserId = tokens.find((t) => t.token === androidTokens[index])?.userId;
+                        if (invalidUserId) {
+                            invalidTokens.push({ userId: invalidUserId, token: androidTokens[index] });
+                        }
+                    }
+                }
+            });
+
+            // Xóa token không hợp lệ
+            await Promise.all(
+                invalidTokens.map(async ({ userId }) => {
+                    await delAsync(`user:${userId}:fcmToken`);
+                    console.log(`Xóa token FCM không hợp lệ cho người dùng ${userId}`);
+                })
+            );
+        }
+
+        return { successCount: response.successCount, failureCount: response.failureCount, invalidTokens };
+    } catch (error) {
+        console.error(`Lỗi gửi thông báo FCM cho call ${message.callId || "unknown"}:`, error);
+        return { successCount: 0, failureCount: androidTokens.length, invalidTokens: [] };
+    }
+};
+
+// const sendVoIPNotification = async ({ iosTokens, message }) => {
+//     try {
+//         const isCall = message.type === "call";
+
+//         const promises = iosTokens.map(async ({ userId, token }) => {
+//             const notification = new apn.Notification();
+
+//             if (isCall) {
+//                 // VoIP notification cho cuộc gọi
+//                 notification.pushType = "voip";
+//                 notification.topic = process.env.APNS_VOIP_TOPIC || "com.yourapp.voip"; // Lấy từ biến môi trường
+//                 notification.payload = {
+//                     callerId: message.data?.callerId || "unknown",
+//                     callId: message.callId || Date.now().toString(),
+//                     type: "call",
+//                 };
+//             } else {
+//                 // Thông báo thông thường
+//                 notification.pushType = "alert";
+//                 notification.topic = process.env.APNS_TOPIC || "com.yourapp"; // Lấy từ biến môi trường
+//                 notification.alert = {
+//                     title: message.title || "Thông báo mới",
+//                     body: message.body || "Bạn có thông báo mới",
+//                 };
+//                 notification.badge = 1; // Thêm badge nếu cần
+//                 notification.sound = "call_ringtone.wav";
+//                 notification.mutableContent = 1;
+//                 notification.payload = {
+//                     type: message.type,
+//                     ...message.data,
+//                 };
+//             }
+
+//             notification.priority = 10;
+//             notification.expiry = Math.floor(Date.now() / 1000) + 3600; // Hết hạn sau 1 giờ
+
+//             try {
+//                 const result = await apnProvider.send(notification, token);
+//                 if (result.failed.length > 0) {
+//                     console.log(`Lỗi gửi APNS cho người dùng ${userId}:`, result.failed);
+//                     if (
+//                         result.failed[0].response?.reason === "BadDeviceToken" ||
+//                         result.failed[0].response?.reason === "Unregistered"
+//                     ) {
+//                         await delAsync(`user:${userId}:fcmToken`);
+//                         console.log(`Xóa token APNS không hợp lệ cho người dùng ${userId}`);
+//                         return { userId, success: false };
+//                     }
+//                 } else {
+//                     console.log(`Gửi thông báo APNS thành công cho người dùng ${userId}`);
+//                     return { userId, success: true };
+//                 }
+//             } catch (error) {
+//                 console.error(`Lỗi gửi APNS cho người dùng ${userId}:`, error);
+//                 return { userId, success: false };
+//             }
+//         });
+
+//         const results = await Promise.all(promises);
+//         const successCount = results.filter((r) => r.success).length;
+//         const failureCount = results.length - successCount;
+//         const invalidTokens = results.filter((r) => !r.success).map((r) => ({ userId: r.userId }));
+
+//         return { successCount, failureCount, invalidTokens };
+//     } catch (error) {
+//         console.error(`Lỗi gửi thông báo VoIP cho call ${message.callId || "unknown"}:`, error);
+//         return { successCount: 0, failureCount: iosTokens.length, invalidTokens: iosTokens };
+//     }
+// };
 
 const sendMulticastNotification = async (toUserIds, message) => {
-	try {
-		console.log(
-			`Sending multicast push notification to ${toUserIds.length} users`,
-		);
-		console.log("toUserIds:", toUserIds);
+    try {
+        if (toUserIds.length === 0) {
+            console.log("Không có người dùng để gửi thông báo");
+            return { success: false, message: "No users to notify" };
+        }
 
-		if (toUserIds.length === 0) {
-			console.log("No users to send push notifications");
-			return;
-		}
+        // Lấy token và kiểm tra nền tảng (Android/iOS)
+        const tokens = await Promise.all(
+            toUserIds.map(async (id) => ({
+                userId: id,
+                token: await getAsync(`user:${id}:fcmToken`),
+                platform: await getAsync(`user:${id}:platform`), // Lưu nền tảng (android/ios) trong Redis
+            }))
+        );
 
-		const tokens = await Promise.all(
-			toUserIds.map(async (id) => ({
-				userId: id,
-				token: await getAsync(`user:${id}:fcmToken`),
-			})),
-		);
+        const androidTokens = tokens
+            .filter((t) => t.platform === "android" && t.token)
+            .map((t) => t.token);
+        const iosTokens = tokens
+            .filter((t) => t.platform === "ios" && t.token)
+            .map((t) => ({ userId: t.userId, token: t.token }));
+        const invalidUsers = tokens
+            .filter((t) => !t.token)
+            .map((t) => t.userId);
 
-		const validTokens = tokens.filter((t) => t.token).map((t) => t.token);
-		const invalidUsers = tokens.filter((t) => !t.token).map((t) => t.userId);
+        console.log(`Token Android: ${androidTokens.length}, Token iOS: ${iosTokens.length}, Người dùng không hợp lệ: ${invalidUsers}`);
 
-		console.log(
-			`Valid tokens: ${validTokens}, Invalid users: ${invalidUsers}`,
-		);
+        if (invalidUsers.length > 0) {
+            console.log(`Người dùng không đăng ký thông báo: ${invalidUsers.join(", ")}`);
+        }
 
-		if (invalidUsers.length > 0) {
-			console.log(
-				`Users not registered for push notifications: ${invalidUsers.join(
-					", ",
-				)}`,
-			);
-		}
+        if (androidTokens.length === 0 && iosTokens.length === 0) {
+            console.log("Không có token hợp lệ để gửi thông báo");
+            return { success: false, message: "No valid tokens" };
+        }
 
-		if (validTokens.length === 0) {
-			console.log("No valid tokens to send push notifications");
-			return;
-		}
+        const results = { android: null, ios: null };
 
-		console.log(`Message: ${JSON.stringify(message)}`);
-		console.log(`Notifying ${toUserIds.length} users`);
+        // Gửi thông báo cho iOS
+        // if (iosTokens.length > 0) {
+        //     results.ios = await sendVoIPNotification({ iosTokens, message });
+        // }
 
-		const isCall = message.type === "call";
+        // Gửi thông báo cho Android
+        if (androidTokens.length > 0) {
+            results.android = await sendFCMNotification({ androidTokens, message, tokens });
+        }
 
-		const baseNotification = {
-			...(isCall
-				? {} // Nếu là cuộc gọi thì không gửi notification
-				: {
-						notification: {
-							title: message.title,
-							body: message.body,
-						},
-					}),
-			data: {
-				type: message.type,
-				...(message.data || {}),
-			},
-			android: {
-				priority: "high",
-				...(isCall
-					? {}
-					: {
-							notification: {
-								sound: "call_ringtone",
-								channelId: "call_notifications",
-							},
-						}),
-			},
-			apns: {
-				payload: {
-					aps: {
-						sound: "call_ringtone.wav",
-						"mutable-content": 1,
-					},
-				},
-			},
-		};
+        // Tổng hợp kết quả
+        const totalSuccess = (results.android?.successCount || 0) + (results.ios?.successCount || 0);
+        const totalFailure = (results.android?.failureCount || 0) + (results.ios?.failureCount || 0);
 
-		// Dùng sendEachForMulticast cho phiên bản mới
-		const messages = validTokens.map((token) => ({
-			...baseNotification,
-			token,
-		}));
+        console.log(`Kết quả gửi thông báo: Thành công=${totalSuccess}, Thất bại=${totalFailure}`);
 
-		const response = await admin.messaging().sendEach(messages);
-		console.log(`Multicast push notification sent for ${message}`, {
-			successCount: response.successCount,
-			failureCount: response.failureCount,
-			responses: response.responses,
-		});
-
-		// Xử lý token không hợp lệ
-		if (response.failureCount > 0) {
-			response.responses.forEach(async (res, index) => {
-				if (!res.success && res.error) {
-					const error = res.error;
-					if (
-						error.code === "messaging/invalid-registration-token" ||
-						error.code === "messaging/registration-token-not-registered"
-					) {
-						const invalidUserId = tokens[index].userId;
-						await delAsync(`user:${invalidUserId}:fcmToken`);
-						console.log(`Removed invalid fcmToken for user ${invalidUserId}`);
-					}
-				}
-			});
-		}
-	} catch (error) {
-		console.error(
-			`Error sending multicast push notification for call ${message.callId}:`,
-			error,
-		);
-	}
+        return {
+            success: totalSuccess > 0,
+            message: `Gửi thông báo hoàn tất: ${totalSuccess} thành công, ${totalFailure} thất bại`,
+            details: results,
+        };
+    } catch (error) {
+        console.error(`Lỗi gửi thông báo multicast:`, error);
+        return { success: false, message: "Lỗi hệ thống khi gửi thông báo", error };
+    }
 };
 
 module.exports = {
-	sendMulticastNotification,
+    sendMulticastNotification,
 };

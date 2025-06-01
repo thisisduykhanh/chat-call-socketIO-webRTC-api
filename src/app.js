@@ -8,7 +8,7 @@ const compression = require("compression");
 const apiRouter = require("~/routes");
 const morgan = require("morgan");
 const connectDB = require("~/config/mongoDB");
-const { connectRedis } = require("~/config/redis");
+const { connectRedis, cleanupRedis } = require("~/config/redis");
 
 const socket = require("~/socket");
 const http = require("node:http");
@@ -57,5 +57,7 @@ app.use((req, res, next) => {
 });
 
 app.use(errorHandler);
+
+setInterval(cleanupRedis, 24 * 60 * 60 * 1000); // Cleanup Redis every 24 hours
 
 module.exports = server;
