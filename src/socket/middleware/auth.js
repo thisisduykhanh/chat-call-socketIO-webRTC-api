@@ -33,7 +33,11 @@ const socketAuth = async (socket, next) => {
 		next();
 	} catch (err) {
 		console.error("❌ Invalid token:", err.message);
-		next(CreateError(401, "Authentication error: Invalid token"));
+		if (err.name === "TokenExpiredError") {
+			return next(CreateError(401, "TokenExpiredError"));
+		}
+
+		next(CreateError(403, "Authentication error: Invalid token"));
 	}
 };
 

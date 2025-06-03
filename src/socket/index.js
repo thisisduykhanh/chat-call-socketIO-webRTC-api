@@ -36,7 +36,20 @@ module.exports = (app, server) => {
 	app.set("io", io);
 
 	// authentication middleware
-	io.use(socketAuth);
+	io.use((socket, next) => {
+		try {
+			socketAuth(socket, next);
+		} catch (err) {
+			console.error("❌ Authentication error:", err.message);
+
+			if (err.name === "TokenExpiredError") {
+				socket.emit("token-expired");
+				console.log("🔴 Token expired for socket:", socket.id);
+				return next(new Error("Token expired"));
+			}
+			return next(err);
+		}
+	});
 
 	io.on("connection", async (socket) => {
 		const userId = socket.user.id;
