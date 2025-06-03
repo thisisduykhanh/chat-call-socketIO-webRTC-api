@@ -6,6 +6,9 @@ const { verifyAccessToken } = require("@/middleware/auth.middleware");
 
 router.put("/update", verifyAccessToken, UserSettingsController.updateSetting);
 router.get("/", verifyAccessToken, UserSettingsController.getUserSettings);
+
+router.get("/blocked-users", verifyAccessToken, UserSettingsController.getBlockedUsers);
+
 router.post(
     "/blocked-users",
     verifyAccessToken,

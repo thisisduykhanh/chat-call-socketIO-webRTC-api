@@ -50,6 +50,16 @@ module.exports = {
         }
     },
 
+    getBlockedUsers: async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const blockedUsers = await UserSettingsService.getBlockedUsers(userId);
+            return res.status(200).json(blockedUsers);
+        } catch (error) {
+            return res.status(400).json({ message: error.message });
+        }
+    },
+
     removeBlockedUser: async (req, res) => {
         try {
             const userId = req.user.id;

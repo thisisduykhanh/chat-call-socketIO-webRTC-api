@@ -195,6 +195,24 @@ class UserSettingsService {
 
         return settings.privacySettings.blockedUsers;
     }
+
+    async getBlockedUsers(userId) {
+        await this.validateUserId(userId);
+
+        const settings = await UserSettings.findOne(
+            { userId },
+            { "privacySettings.blockedUsers": 1 }
+        ).populate(
+            "privacySettings.blockedUsers",
+            "username name avatarUrl"
+        );
+
+        if (!settings) {
+            throw new CreateError.NotFound("User settings not found");
+        }
+
+        return settings.privacySettings.blockedUsers;
+    }
 }
 
 module.exports = new UserSettingsService();
