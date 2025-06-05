@@ -7,24 +7,33 @@ const { emitToConversation } = require("~/socket/utils/socket.helpers");
 const ConversationService = require("~/api/services/conversation.service");
 
 module.exports = (socket, io) => {
-    socket.on("conversation:join", async (conversationId) => {
-        socket.join(conversationId);
 
-        const messages = await ConversationService.markMessagesAsRead(
-            conversationId,
-            socket.user.id
-        );
+    async function broadcastReadStatus(conversationId, userId) {
+    const messages = await ConversationService.markMessagesAsRead(conversationId, userId);
+    
+    if (messages.length > 0) {
+        const participants = await ConversationService.getAllParticipants(conversationId);
 
-        if (messages.length > 0) {
-            io.to(conversationId).emit("conversation:updateMessageStatus", {
+        for (const participant of participants) {
+            io.to(participant._id.toString()).emit("conversation:updateMessageStatus", {
                 messages,
                 conversationId,
             });
-
-            console.log(
-                `Updated message status for conversation ${conversationId} for user ${socket.user.id}`
-            );
         }
+
+        console.log(`Updated message status for conversation ${conversationId} for user ${userId}`);
+    }
+}
+
+    socket.on("conversation:markAsRead", async (conversationId) => {
+        await broadcastReadStatus(conversationId, socket.user.id)
+
+    });
+
+    socket.on("conversation:join", async (conversationId) => {
+        socket.join(conversationId);
+
+        await broadcastReadStatus(conversationId, socket.user.id)
 
         console.log(
             `User ${socket.user.id} joined conversation ${conversationId}`
