@@ -63,24 +63,28 @@ class MessageService {
                 senderId,
                 "privacySettings.blockedUsers"
             );
+
+            console.log("Sender Settings:", senderSettings);
+
             const receiverSettings = await UserSettingsService.getSetting(
                 receiverId,
                 "privacySettings.blockedUsers"
             );
 
             if (
-                senderSettings["privacySettings.blockedUsers"].includes(
-                    receiverId.toString()
-                )
+                senderSettings["privacySettings.blockedUsers"]
+                    .map((id) => id.toString())
+                    .includes(receiverId.toString())
             ) {
                 throw new CreateError.Forbidden(
                     "You have blocked this user and cannot send messages to them"
                 );
             }
+
             if (
-                receiverSettings["privacySettings.blockedUsers"].includes(
-                    senderId.toString()
-                )
+                receiverSettings["privacySettings.blockedUsers"]
+                    .map((id) => id.toString())
+                    .includes(senderId.toString())
             ) {
                 throw new CreateError.Forbidden(
                     "You are blocked by this user and cannot send messages to them"
@@ -434,7 +438,7 @@ class MessageService {
             );
         }
 
-        if(message.conversation.toString() === conversationId.toString()) {
+        if (message.conversation.toString() === conversationId.toString()) {
             throw CreateError.BadRequest(
                 "Cannot forward message to the same conversation."
             );
@@ -446,11 +450,15 @@ class MessageService {
             );
         }
 
-        const conversation = await Conversation.findOne({ _id: conversationId, participants: { $elemMatch: { user: userId } } });
+        const conversation = await Conversation.findOne({
+            _id: conversationId,
+            participants: { $elemMatch: { user: userId } },
+        });
         if (!conversation) {
-            throw CreateError.NotFound("Conversation not found or you are not a participant.");
+            throw CreateError.NotFound(
+                "Conversation not found or you are not a participant."
+            );
         }
-
 
         if (conversation.participants.length === 2) {
             const receiver = conversation.participants.find(
@@ -510,7 +518,9 @@ class MessageService {
             participants: { $elemMatch: { user: userId } },
         });
         if (!conversation) {
-            throw CreateError.NotFound("Conversation not found or you are not a participant.");
+            throw CreateError.NotFound(
+                "Conversation not found or you are not a participant."
+            );
         }
 
         const messages = await Message.find({
@@ -519,7 +529,9 @@ class MessageService {
         });
 
         if (messages.length === 0) {
-            throw CreateError.NotFound("No messages found in this conversation.");
+            throw CreateError.NotFound(
+                "No messages found in this conversation."
+            );
         }
 
         for (const message of messages) {
