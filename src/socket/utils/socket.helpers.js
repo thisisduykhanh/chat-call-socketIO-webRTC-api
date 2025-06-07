@@ -80,7 +80,7 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 
 	// tin nhắn 1:1
 	if (receiver?._id && conversation._id) {
-		io.to(receiver._id.toString()).emit("message:new", { message: msg });
+		socket.to(receiver._id.toString()).emit("message:new", { message: msg });
 		socket.emit("message:new", {
 			message: msg,
 			tempId: tempId,
@@ -108,7 +108,7 @@ const emitToConversation = async ({ io, socket, msg, tempId }) => {
 		for (const participant of participants) {
 			const participantId = participant._id.toString();
 			if (participantId !== socket.user.id) {
-				io.to(participantId).emit("message:new", {
+				socket.to(participantId).emit("message:new", {
 					message: msg,
 				});
 				console.log(

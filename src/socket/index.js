@@ -72,7 +72,7 @@ module.exports = (app, server) => {
 			const users = await getUsersInPrivateConversations(userId);
 
 			for (const user of users) {
-				io.to(user._id.toString()).emit("user:online", { userId });
+				socket.to(user._id.toString()).emit("user:online", { userId });
 				console.log(`Emit user ${user._id} status updated to online`);
 			}
 		});
@@ -108,7 +108,7 @@ module.exports = (app, server) => {
 				const relatedUsers = await getUsersInPrivateConversations(userId);
 
 				for (const user of relatedUsers) {
-					io.to(user._id.toString()).emit("user:offline", { userId });
+					socket.to(user._id.toString()).emit("user:offline", { userId });
 					console.log(`User ${user._id} status updated to offline`);
 				}
 
@@ -120,7 +120,7 @@ module.exports = (app, server) => {
 			const callKey = socket.callKey;
 			const conversationId = callKey?.split(":")[1];
 			if (callKey && conversationId) {
-				io.to(conversationId).emit("user-disconnected", { userId });
+				socket.to(conversationId).emit("user-disconnected", { userId });
 				const participantsKey = `call:${conversationId}:participants`;
 
 				if (await existsAsync(callKey)) {
@@ -170,7 +170,7 @@ module.exports = (app, server) => {
 									JSON.stringify(message),
 									604800,
 								);
-								io.to(conversationId).emit("call-message-saved", message);
+								socket.to(conversationId).emit("call-message-saved", message);
 								console.log(
 									`Saved call message for conversation ${conversationId}`,
 								);
@@ -178,7 +178,7 @@ module.exports = (app, server) => {
 								console.error(`Error saving call message: ${err.message}`);
 							}
 
-							io.to(callKey).emit("call-ended", {
+							socket.to(callKey).emit("call-ended", {
 								userId,
 								conversationId,
 								reason: isOneToOne ? "user-disconnected" : "no-participants",
@@ -200,7 +200,7 @@ module.exports = (app, server) => {
 								`🛑 ${isOneToOne ? "1:1" : "Group"} call in ${conversationId} ended due to ${userId} disconnecting`,
 							);
 						} else {
-							io.to(callKey).emit("user-left-call", {
+							socket.to(callKey).emit("user-left-call", {
 								userId,
 								conversationId,
 							});

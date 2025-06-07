@@ -13,10 +13,10 @@ const UserSettingsSchema = new mongoose.Schema(
       mutedChatsArchived: { type: Boolean, default: false },
     },
     privacySettings: {
-      phoneVisible: { type: Boolean, default: false },
+      phoneVisible: { type: Boolean, default: true },
       phoneSearchable: { type: Boolean, default: false },
       readStatus: { type: Boolean, default: true },
-      typingStatus: { type: Boolean, default: false },
+      typingStatus: { type: Boolean, default: true },
       blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     },
     dataUsage: {

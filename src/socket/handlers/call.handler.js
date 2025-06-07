@@ -274,7 +274,7 @@ module.exports = (socket, io) => {
                 for (const participant of conversationMembers) {
                     const participantId = participant._id.toString();
                     if (participantId !== userId) {
-                        io.to(participantId).emit("call-ended", {
+                        socket.to(participantId).emit("call-ended", {
                             userId,
                             conversationId,
                             callId: callKey,
@@ -357,8 +357,8 @@ module.exports = (socket, io) => {
             console.log(`Cancelled timeout for call ${conversationId}`);
         }
 
-        io.to(callKey).emit("user-joined-call", { userId });
-        io.to(toUserId).emit("call-accepted", { toUserId: userId });
+        socket.to(callKey).emit("user-joined-call", { userId });
+        socket.to(toUserId).emit("call-accepted", { toUserId: userId });
         console.log(`✅ ${userId} accepted call in ${conversationId}`);
     });
 
@@ -371,7 +371,7 @@ module.exports = (socket, io) => {
             console.log(`Cancelled timeout for call ${conversationId}`);
         }
 
-        io.to(`call:${conversationId}`).emit("call-rejected", { userId });
+        socket.to(`call:${conversationId}`).emit("call-rejected", { userId });
         console.log(`❌ ${userId} rejected call in ${conversationId}`);
     });
 
@@ -468,7 +468,7 @@ module.exports = (socket, io) => {
                 const participantId = participant._id.toString();
                 console.log(`Participant ID: ${participantId}`);
                 if (participantId !== userId) {
-                    io.to(participantId).emit("call-ended", {
+                    socket.to(participantId).emit("call-ended", {
                         userId,
                         conversationId,
                         callId: callKey,
@@ -479,7 +479,7 @@ module.exports = (socket, io) => {
             }
 
             // Gửi call-ended đến caller
-            io.to(callKey).emit("call-ended", {
+            socket.to(callKey).emit("call-ended", {
                 userId,
                 conversationId,
                 reason: "user-ended",

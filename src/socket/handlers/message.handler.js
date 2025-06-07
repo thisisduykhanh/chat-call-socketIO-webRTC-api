@@ -6,34 +6,43 @@ const { emitToConversation } = require("~/socket/utils/socket.helpers");
 
 const ConversationService = require("~/api/services/conversation.service");
 
+const UserSettingsService = require("~/api/services/user.settings.service");
+
 module.exports = (socket, io) => {
-
     async function broadcastReadStatus(conversationId, userId) {
-    const messages = await ConversationService.markMessagesAsRead(conversationId, userId);
-    
-    if (messages.length > 0) {
-        const participants = await ConversationService.getAllParticipants(conversationId);
+        const messages = await ConversationService.markMessagesAsRead(
+            conversationId,
+            userId
+        );
 
-        for (const participant of participants) {
-            io.to(participant._id.toString()).emit("conversation:updateMessageStatus", {
-                messages,
-                conversationId,
-            });
+        if (messages.length > 0) {
+            const participants = await ConversationService.getAllParticipants(
+                conversationId
+            );
+
+            for (const participant of participants) {
+                socket
+                    .to(participant._id.toString())
+                    .emit("conversation:updateMessageStatus", {
+                        messages,
+                        conversationId,
+                    });
+            }
+
+            console.log(
+                `Updated message status for conversation ${conversationId} for user ${userId}`
+            );
         }
-
-        console.log(`Updated message status for conversation ${conversationId} for user ${userId}`);
     }
-}
 
     socket.on("conversation:markAsRead", async (conversationId) => {
-        await broadcastReadStatus(conversationId, socket.user.id)
-
+        await broadcastReadStatus(conversationId, socket.user.id);
     });
 
     socket.on("conversation:join", async (conversationId) => {
         socket.join(conversationId);
 
-        await broadcastReadStatus(conversationId, socket.user.id)
+        await broadcastReadStatus(conversationId, socket.user.id);
 
         console.log(
             `User ${socket.user.id} joined conversation ${conversationId}`
@@ -133,7 +142,7 @@ module.exports = (socket, io) => {
             for (const participant of participants) {
                 const participantId = participant._id.toString();
 
-                io.to(participantId).emit("message:recalled", {
+                socket.to(participantId).emit("message:recalled", {
                     message: message,
                 });
                 console.log(
@@ -190,7 +199,7 @@ module.exports = (socket, io) => {
     socket.on("message:pin", async ({ messageId, conversationId }) => {
         try {
             await pinnedMessageService.pinMessage(messageId, socket.user.id);
-            io.to(conversationId).emit("message:pinned", { messageId });
+            socket.to(conversationId).emit("message:pinned", { messageId });
         } catch (err) {
             socket.emit("error", "Không thể ghim tin nhắn");
         }
@@ -234,7 +243,26 @@ module.exports = (socket, io) => {
         for (const participant of participants) {
             const participantId = participant._id.toString();
             if (participantId !== socket.user.id) {
-                io.to(participantId).emit("message:typing", {
+                const participantSettings =
+                    await UserSettingsService.getSetting(
+                        participantId,
+                        "privacySettings.typingStatus"
+                    );
+
+                console.log("participantSettings:", participantSettings);
+
+                // Check if the participant has typing status enabled
+                if (
+                    participantSettings &&
+                    participantSettings["privacySettings.typingStatus"] === false
+                ) {
+                    console.log(
+                        `Typing status is off for user ${participantId}, not sending typing notification`
+                    );
+                    continue;
+                }
+
+                socket.to(participantId).emit("message:typing", {
                     userId: socket.user.id,
                     conversationId,
                 });
@@ -264,7 +292,7 @@ module.exports = (socket, io) => {
         for (const participant of participants) {
             const participantId = participant._id.toString();
             if (participantId !== socket.user.id) {
-                io.to(participantId).emit("message:stopTyping", {
+                socket.to(participantId).emit("message:stopTyping", {
                     userId: socket.user.id,
                     conversationId,
                 });
@@ -279,27 +307,30 @@ module.exports = (socket, io) => {
         );
     });
 
-    socket.on("message:forward", async ({ messageId, conversationId, tempId }) => {
-        try {
-            const message = await messageService.forwardMessage({
-                messageId,
-                conversationId,
-                userId: socket.user.id,
-            });
-
-            if (message) {
-                emitToConversation({
-                    io,
-                    socket,
-                    msg: message,
-                    tempId: tempId,
+    socket.on(
+        "message:forward",
+        async ({ messageId, conversationId, tempId }) => {
+            try {
+                const message = await messageService.forwardMessage({
+                    messageId,
+                    conversationId,
+                    userId: socket.user.id,
                 });
-            } else {
+
+                if (message) {
+                    emitToConversation({
+                        io,
+                        socket,
+                        msg: message,
+                        tempId: tempId,
+                    });
+                } else {
+                    socket.emit("error", "Không thể chuyển tiếp tin nhắn");
+                }
+            } catch (err) {
+                console.error(err);
                 socket.emit("error", "Không thể chuyển tiếp tin nhắn");
             }
-        } catch (err) {
-            console.error(err);
-            socket.emit("error", "Không thể chuyển tiếp tin nhắn");
         }
-    });
+    );
 };
