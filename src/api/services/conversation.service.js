@@ -1,5 +1,6 @@
 const Conversation = require("@/models/conversation.model");
 const Message = require("@/models/message.model");
+const UserSettingsService = require("@/services/user.settings.service");
 
 class ConversationService {
     async markMessagesAsRead(conversationId, userId) {
@@ -109,7 +110,6 @@ class ConversationService {
         return await newConversation.save();
     }
 
-
     async getConversationByUserId(userId) {
         const conversations = await Conversation.find({
             "participants.user": userId,
@@ -185,7 +185,10 @@ class ConversationService {
 
     async pinConversation(conversationId, userId, isPinned) {
         const conversation = await Conversation.findOneAndUpdate(
-            { _id: conversationId, participants: { $elemMatch: { user: userId } } },
+            {
+                _id: conversationId,
+                participants: { $elemMatch: { user: userId } },
+            },
             { $set: { "participants.$.isPinned": isPinned } },
             { new: true }
         ).populate({
@@ -196,6 +199,51 @@ class ConversationService {
         if (!conversation) throw new Error("Conversation not found");
 
         return conversation;
+    }
+
+    async checkBlockStatus(conversationId, userId) {
+        const conversation = await Conversation.findOne({
+            _id: conversationId,
+            "participants.user": userId,
+        });
+
+        if (!conversation) throw new Error("Conversation not found");
+
+        if (!conversation.isGroup) {
+            const otherParticipant = conversation.participants.find(
+                (p) => p.user.toString() !== userId.toString()
+            );
+
+            if (!otherParticipant) throw new Error("Participant not found");
+
+            const settings = await UserSettingsService.getSetting(
+                otherParticipant.user.toString(),
+                "privacySettings.blockedUsers"
+            );
+
+            const blockedUsers =
+                settings?.["privacySettings.blockedUsers"] ?? [];
+
+            const isBlocked = blockedUsers.some(
+                (id) => id.toString() === userId.toString()
+            );
+
+            if (isBlocked) return true;
+        }
+
+        return false;
+    }
+
+    async checkUserBlockStatus(receiverId, userId) {
+        const settings = await UserSettingsService.getSetting(
+            receiverId,
+            "privacySettings.blockedUsers"
+        );
+
+        if (!settings) throw new Error("User settings not found");
+
+        const blockedUsers = settings?.["privacySettings.blockedUsers"] ?? [];
+        return blockedUsers.some((id) => id.toString() === userId.toString());
     }
 }
 

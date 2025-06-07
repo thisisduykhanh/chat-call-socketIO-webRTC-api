@@ -35,4 +35,40 @@ module.exports = {
 			res.status(500).json({ error: error.message || "Internal server error" });
 		}
 	},
+
+	checkBlockStatus: async (req, res) => {
+		try {
+			const { conversationId } = req.params;
+			if (!conversationId) {
+				return res.status(400).json({ error: "Conversation ID is required" });
+			}
+
+			const isBlocked = await ConversationService.checkBlockStatus(
+				conversationId,
+				req.user.id
+			);
+
+			res.status(200).json({ isBlocked });
+		} catch (error) {
+			res.status(500).json({ error: error.message || "Internal server error" });
+		}
+	},
+
+	checkUserBlockStatus: async (req, res) => {
+		try {
+			const { receiverId } = req.params;
+			if (!receiverId) {
+				return res.status(400).json({ error: "Receiver ID is required" });
+			}
+
+			const isBlocked = await ConversationService.checkUserBlockStatus(
+				receiverId,
+				req.user.id
+			);
+
+			res.status(200).json({ isBlocked });
+		} catch (error) {
+			res.status(500).json({ error: error.message || "Internal server error" });
+		}
+	}
 };

@@ -1,6 +1,8 @@
 const { Server } = require("socket.io");
 const registerMessageHandlers = require("./handlers/message.handler");
 
+const registerBlockHandlers = require("./handlers/block.handler");
+
 const registerCallHandlers = require("./handlers/call.handler");
 
 const socketAuth = require("~/socket/middleware/auth");
@@ -77,6 +79,8 @@ module.exports = (app, server) => {
 
 		// Đăng ký các logic xử lý
 		registerMessageHandlers(socket, io);
+
+		registerBlockHandlers(socket, io);
 
 		registerCallHandlers(socket, io);
 
