@@ -349,12 +349,22 @@ class AuthService {
 	}
 
 	async changePassword({ userId, oldPassword, newPassword, confirmPassword }) {
+
+		console.log("oldPassword", oldPassword);
+		console.log("newPassword", newPassword);
+		if (!oldPassword || !newPassword || !confirmPassword) {
+			throw CreateError.BadRequest("All fields are required");
+		}
+		
 		if (newPassword !== confirmPassword) {
 			throw CreateError.BadRequest("Passwords do not match");
+		} else if (oldPassword === newPassword) {
+			throw CreateError.BadRequest("New password must be different from old password");
 		}
 
 		const user = await User.findById(userId);
 		if (!user) throw CreateError.NotFound("User not found");
+
 
 		const isMatch = await user.comparePassword(oldPassword);
 		if (!isMatch) throw CreateError.Unauthorized("Invalid credentials");
