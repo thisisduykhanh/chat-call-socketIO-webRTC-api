@@ -102,6 +102,7 @@ class AuthService {
 		const user = await User.findOne({
 			$or: [{ email: emailOrPhone }, { phone: emailOrPhone }],
 		});
+		
 		if (!user || !(await bcrypt.compare(password, user.password))) {
 			throw CreateError.Unauthorized("Invalid credentials");
 		}

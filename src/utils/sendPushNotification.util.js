@@ -5,6 +5,9 @@ const { getAsync, delAsync } = require("~/config/redis");
 
 const sendFCMNotification = async ({ androidTokens, message, tokens }) => {
     try {
+        console.log("androidTokens", androidTokens);
+        console.log("tokens", tokens);
+
         const isCall = message.type === "call";
 
         const baseNotification = {

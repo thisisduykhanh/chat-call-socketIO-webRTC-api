@@ -19,7 +19,7 @@ class MessageService {
     }) {
         let conversation;
 
-        if (conversationId) {
+        if (conversationId && conversationId !== "null") {
             console.log("Conversation ID:", conversationId);
             conversation = await Conversation.findById(conversationId);
 

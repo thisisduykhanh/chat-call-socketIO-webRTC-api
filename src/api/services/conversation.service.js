@@ -6,6 +6,10 @@ class ConversationService {
     async markMessagesAsRead(conversationId, userId) {
         const now = new Date();
 
+        if (!conversationId || !userId) {
+            throw new Error("Conversation ID and User ID are required");
+        }
+
         const conversation = await Conversation.findOne(
             { _id: conversationId, "participants.user": userId },
             { "participants.$": 1 }
