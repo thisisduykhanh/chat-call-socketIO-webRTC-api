@@ -142,6 +142,13 @@ module.exports = (socket, io) => {
             for (const participant of participants) {
                 const participantId = participant._id.toString();
 
+                if (participantId === socket.user.id) {
+                    socket.emit("message:recalled", {
+                        message: message,
+                    });
+                    continue; // Skip the sender
+                }
+
                 socket.to(participantId).emit("message:recalled", {
                     message: message,
                 });
@@ -254,7 +261,8 @@ module.exports = (socket, io) => {
                 // Check if the participant has typing status enabled
                 if (
                     participantSettings &&
-                    participantSettings["privacySettings.typingStatus"] === false
+                    participantSettings["privacySettings.typingStatus"] ===
+                        false
                 ) {
                     console.log(
                         `Typing status is off for user ${participantId}, not sending typing notification`
