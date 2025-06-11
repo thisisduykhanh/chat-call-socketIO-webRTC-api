@@ -2,13 +2,14 @@ const { Redis } = require("ioredis");
 const config = require("./index");
 const activeCalls = require("~/socket/state/callState");
 
-// const redisClient = new Redis(
-// 	url: `redis://${config.REDIS_HOST || "redis"}:${config.REDIS_PORT || 6379}`);
+const redisClient = new Redis(
+	`redis://${config.REDIS_HOST || "redis"}:${config.REDIS_PORT || 6379}`);
 
-const redisClient = new Redis({
-  host: process.env.REDIS_HOST || "redis",
-  port: parseInt(process.env.REDIS_PORT, 10) || 6379,
-});
+
+// const redisClient = new Redis({
+//   host: process.env.REDIS_HOST || "redis",
+//   port: parseInt(process.env.REDIS_PORT, 10) || 6379,
+// });
 
 console.log("Connecting to Redis at:", `redis://${config.REDIS_HOST}:${config.REDIS_PORT}`);
 

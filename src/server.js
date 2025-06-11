@@ -19,6 +19,14 @@ process.on("unhandledRejection", (err) => {
 	process.exit(1);
 });
 
+if (process.env.NODE_ENV === 'production') {
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  console.warn = () => {};
+}
+
+
 app.listen(port, hostName, () => {
 	console.log(`Server is running on http://${hostName}:${port}/${version}`);
 });

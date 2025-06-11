@@ -28,6 +28,7 @@ const MessageSchema = new mongoose.Schema(
 				"text",
 				"image",
 				"video",
+				"audio",
 				"call",
 				"file",
 				"emoji",
