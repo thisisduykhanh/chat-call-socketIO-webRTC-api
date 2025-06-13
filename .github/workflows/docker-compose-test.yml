@@ -18,17 +18,12 @@ jobs:
         run: echo "${{ secrets.ENV_FILE }}" > .env
 
       - name: Build Docker images
-        run: docker compose -f compose.yml build
-
-      - name: Start Docker Compose services
-        run: docker compose -f compose.yml up -d
+        run: docker compose up -d --build
 
       - name: Wait for server to be ready
         run: sleep 10
 
-      - name: Check container status
-        run: docker compose -f compose.yml ps
 
       - name: Stop services
         if: always()
-        run: docker compose -f compose.yml down
+        run: docker compose -f down
