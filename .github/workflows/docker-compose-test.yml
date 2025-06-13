@@ -1,0 +1,29 @@
+name: Test Docker Container
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  docker-compose-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create .env file from ENV_FILE secret
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Build Docker images
+        run: docker compose up -d --build
+
+      - name: Wait for server to be ready
+        run: sleep 10
+
+
+      - name: Stop services
+        if: always()
+        run: docker compose -f down
