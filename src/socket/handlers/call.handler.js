@@ -26,7 +26,7 @@ const {
     sRemAsync,
     updateStartTimeAsync,
     getKeysAsync,
-    sIsMemberAsync
+    sIsMemberAsync,
 } = require("~/config/redis");
 
 module.exports = (socket, io) => {
@@ -51,6 +51,7 @@ module.exports = (socket, io) => {
 
         // Người gọi join callKey và thêm vào danh sách participants
         socket.join(callKey);
+
         socket.callKey = callKey;
         await sAddAsync(participantsKey, userId);
 
@@ -119,7 +120,7 @@ module.exports = (socket, io) => {
                 }
             }
 
-             // Kiểm tra xem callee có đang trong cuộc gọi khác
+            // Kiểm tra xem callee có đang trong cuộc gọi khác
             for (const participantId of participantIds) {
                 const userCalls = await getKeysAsync(`call:*:participants`);
                 for (const call of userCalls) {
@@ -130,7 +131,8 @@ module.exports = (socket, io) => {
                         socket.leave(callKey);
                         socket.callKey = null;
                         return socket.emit("call-error", {
-                            message: "One or more participants are already in another call.",
+                            message:
+                                "One or more participants are already in another call.",
                         });
                     }
                 }
@@ -158,7 +160,7 @@ module.exports = (socket, io) => {
 
             console.log(`participantIds: ${participantIds}`);
 
-             // Gửi thông báo push cho tất cả người tham gia
+            // Gửi thông báo push cho tất cả người tham gia
             await sendMulticastNotification(participantIds, {
                 type: "call",
                 title: `Incoming ${
@@ -184,9 +186,6 @@ module.exports = (socket, io) => {
             }
 
             console.log(`call type: ${callType}`);
-            
-
-           
 
             console.log(`📞 ${userId} started call in ${conversationId}`);
         } catch (err) {
@@ -531,19 +530,16 @@ module.exports = (socket, io) => {
                     msg: savedMessage,
                 });
 
-                console.log(
-                    `Saved call message for conversation ${conversationId}`
-                );
+                io.to(callKey).emit("call-ended", {
+                    userId,
+                    conversationId,
+                    reason: "user-ended",
+                });
+
+                console.log(`🛑 ${userId} ended 1:1 call in ${conversationId}`);
             } catch (err) {
                 console.error(`Error saving call message: ${err.message}`);
             }
-
-            io.to(callKey).emit("call-ended", {
-                userId,
-                conversationId,
-                reason: "user-ended",
-            });
-            console.log(`🛑 ${userId} ended 1:1 call in ${conversationId}`);
         } else {
             await sRemAsync(participantsKey, userId);
             const remainingParticipants = await sCardAsync(participantsKey);
@@ -617,10 +613,10 @@ module.exports = (socket, io) => {
         // Rời phòng callKey cho tất cả socket
         if (room) {
             for (const socketId of room) {
-                const socket = io.sockets.sockets.get(socketId);
-                if (socket) {
-                    socket.leave(callKey);
-                    socket.callKey = null;
+                const s = io.sockets.sockets.get(socketId);
+                if (s) {
+                    s.leave(callKey);
+                    s.callKey = null;
                     console.log(`Socket ${socketId} left callKey ${callKey}`);
                 }
             }
