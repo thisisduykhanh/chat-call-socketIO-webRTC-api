@@ -132,9 +132,9 @@ async function googleTokenLogin(req, res) {
 	}
 
 	try {
-		const { accessToken, refreshToken, sessionId } =
+		const { accessToken, refreshToken, sessionId, user } =
 			await AuthService.verifyGoogleTokenId(idToken);
-		res.status(200).json({ accessToken, refreshToken, sessionId });
+		res.status(200).json({ accessToken, refreshToken, sessionId, user });
 	} catch (error) {
 		console.error("Google login error:", error);
 		res.status(401).json({ message: error.message || "Google login failed" });

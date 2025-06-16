@@ -75,6 +75,7 @@ class AuthService {
 			accessToken: signAccessToken({ ...payload, sessionId }),
 			refreshToken,
 			sessionId,
+			user: user.toObject(),
 		};
 	}
 
@@ -95,6 +96,7 @@ class AuthService {
 			accessToken: signAccessToken({ ...payload, sessionId }),
 			refreshToken,
 			sessionId,
+			user: user.toObject(),
 		};
 	}
 
@@ -127,6 +129,7 @@ class AuthService {
 			accessToken: signAccessToken({ ...payload, sessionId }),
 			refreshToken,
 			sessionId,
+			user: user.toObject(),
 		};
 	}
 
@@ -300,7 +303,7 @@ class AuthService {
 			const { refreshToken, sessionId } = await createRefreshToken(payloadJwt);
 			const accessToken = signAccessToken({ ...payloadJwt, sessionId });
 
-			return { accessToken, refreshToken, sessionId };
+			return { accessToken, refreshToken, sessionId, user: user.toObject() };
 		} catch (err) {
 			throw new Error("Invalid Google token");
 		}
@@ -346,7 +349,22 @@ class AuthService {
 		user.password = newPassword;
 		await user.save();
 
-		return { message: "Password has been reset successfully" };
+
+
+		if (!user.verified) {
+			if (user.email === emailOrPhone) await sendOTP(user);
+
+			throw CreateError.Unauthorized(
+				user.email === emailOrPhone
+					? "Please check email to verify!"
+					: "Please check SMS to verify!",
+			);
+		}
+
+		payload = { id: user._id, username: user.username };
+		const { refreshToken, sessionId } = await createRefreshToken(payload);
+
+		return { message: "Password has been reset successfully", user: user.toObject(), refreshToken, sessionId, accessToken: signAccessToken({ ...payload, sessionId }) };
 	}
 
 	async changePassword({ userId, oldPassword, newPassword, confirmPassword }) {

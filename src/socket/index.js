@@ -85,10 +85,12 @@ module.exports = (app, server) => {
                         message: `${userId} has reconnected to the call`,
                     });
 
-					socket.emit("request-new-offer", {
-                    conversationId,
-                    participants: await sMembersAsync(`call:${conversationId}:participants`),
-                });
+                    socket.emit("request-new-offer", {
+                        conversationId,
+                        participants: await sMembersAsync(
+                            `call:${conversationId}:participants`
+                        ),
+                    });
 
                     // Gửi trạng thái cuộc gọi
                     const callData = await hGetAllAsync(
@@ -148,127 +150,155 @@ module.exports = (app, server) => {
             );
         });
 
-       socket.on("request-call-state", async ({ conversationId, userId }) => {
-    const callKey = `call:${conversationId}`;
-    const participantsKey = `call:${conversationId}:participants`;
+        socket.on("request-call-state", async ({ conversationId, userId }) => {
+            const callKey = `call:${conversationId}`;
+            const participantsKey = `call:${conversationId}:participants`;
 
-    if (await existsAsync(callKey)) {
-        const callData = await hGetAllAsync(callKey);
-        const participants = await sMembersAsync(participantsKey);
+            if (await existsAsync(callKey)) {
+                const callData = await hGetAllAsync(callKey);
+                const participants = await sMembersAsync(participantsKey);
 
-        // Check for users with expired reconnect timeouts
-        for (const participant of participants) {
-            const reconnectData = await getReconnectTimeout(participant, conversationId);
-            if (reconnectData) {
-                // Reconnect timeout exists, check if it has expired
-                const timeoutDuration = 60 * 1000; // 60 seconds in milliseconds
-                const currentTime = Date.now();
-                const reconnectTimestamp = reconnectData.timestamp;
-
-                if (currentTime - reconnectTimestamp > timeoutDuration) {
-                    // Reconnect timeout has expired, remove user from call
-                    await sRemAsync(participantsKey, participant);
-                    console.log(
-                        `Removed user ${participant} from call ${conversationId} due to expired reconnect timeout`
+                // Check for users with expired reconnect timeouts
+                for (const participant of participants) {
+                    const reconnectData = await getReconnectTimeout(
+                        participant,
+                        conversationId
                     );
+                    if (reconnectData) {
+                        // Reconnect timeout exists, check if it has expired
+                        const timeoutDuration = 60 * 1000; // 60 seconds in milliseconds
+                        const currentTime = Date.now();
+                        const reconnectTimestamp = reconnectData.timestamp;
 
-                    const remainingParticipants = await sCardAsync(participantsKey);
-                    const isOneToOne = (await getAllParticipants(conversationId)).length === 2;
-
-                    if (isOneToOne || remainingParticipants === 0) {
-                        await delAsync(callKey);
-                        await delAsync(participantsKey);
-
-                        const endTime = new Date();
-                        const startTime = new Date(callData.startTime);
-                        const duration = Math.round((endTime - startTime) / 1000);
-                        const callType = callData.callType || "voice";
-
-                        try {
-                            const message = {
-                                id: Date.now().toString(),
-                                conversation_id: conversationId,
-                                sender_id: userId,
-                                content: `${
-                                    callType === "video" ? "Video" : "Voice"
-                                } call ended (${formatDuration(duration)})`,
-                                timestamp: endTime.getTime(),
-                                status: "sent",
-                                type: "call",
-                                call_data: JSON.stringify({
-                                    callType,
-                                    duration,
-                                    participants,
-                                }),
-                            };
-                            await setAsync(
-                                `message:${conversationId}:${message.id}`,
-                                JSON.stringify(message),
-                                604800
-                            );
-                            socket.to(conversationId).emit("call-message-saved", message);
+                        if (
+                            currentTime - reconnectTimestamp >
+                            timeoutDuration
+                        ) {
+                            // Reconnect timeout has expired, remove user from call
+                            await sRemAsync(participantsKey, participant);
                             console.log(
-                                `Saved call message for conversation ${conversationId}`
+                                `Removed user ${participant} from call ${conversationId} due to expired reconnect timeout`
                             );
-                        } catch (err) {
-                            console.error(`Error saving call message: ${err.message}`);
-                        }
 
-                        socket.to(callKey).emit("call-ended", {
-                            userId: participant,
-                            conversationId,
-                            reason: isOneToOne ? "user-disconnected" : "no-participants",
-                        });
+                            const remainingParticipants = await sCardAsync(
+                                participantsKey
+                            );
+                            const isOneToOne =
+                                (await getAllParticipants(conversationId))
+                                    .length === 2;
 
-                        const room = io.sockets.adapter.rooms.get(callKey);
-                        if (room) {
-                            for (const socketId of room) {
-                                const socket = io.sockets.sockets.get(socketId);
-                                if (socket) {
-                                    socket.leave(callKey);
-                                    socket.callKey = null;
+                            if (isOneToOne || remainingParticipants === 0) {
+                                await delAsync(callKey);
+                                await delAsync(participantsKey);
+
+                                const endTime = new Date();
+                                const startTime = new Date(callData.startTime);
+                                const duration = Math.round(
+                                    (endTime - startTime) / 1000
+                                );
+                                const callType = callData.callType || "voice";
+
+                                try {
+                                    const message = {
+                                        id: Date.now().toString(),
+                                        conversation_id: conversationId,
+                                        sender_id: userId,
+                                        content: `${
+                                            callType === "video"
+                                                ? "Video"
+                                                : "Voice"
+                                        } call ended (${formatDuration(
+                                            duration
+                                        )})`,
+                                        timestamp: endTime.getTime(),
+                                        status: "sent",
+                                        type: "call",
+                                        call_data: JSON.stringify({
+                                            callType,
+                                            duration,
+                                            participants,
+                                        }),
+                                    };
+                                    await setAsync(
+                                        `message:${conversationId}:${message.id}`,
+                                        JSON.stringify(message),
+                                        604800
+                                    );
+                                    socket
+                                        .to(conversationId)
+                                        .emit("call-message-saved", message);
                                     console.log(
-                                        `Socket ${userId} left callKey ${callKey}`
+                                        `Saved call message for conversation ${conversationId}`
+                                    );
+                                } catch (err) {
+                                    console.error(
+                                        `Error saving call message: ${err.message}`
                                     );
                                 }
+
+                                socket.to(callKey).emit("call-ended", {
+                                    userId: participant,
+                                    conversationId,
+                                    reason: isOneToOne
+                                        ? "user-disconnected"
+                                        : "no-participants",
+                                });
+
+                                const room =
+                                    io.sockets.adapter.rooms.get(callKey);
+                                if (room) {
+                                    for (const socketId of room) {
+                                        const socket =
+                                            io.sockets.sockets.get(socketId);
+                                        if (socket) {
+                                            socket.leave(callKey);
+                                            socket.callKey = null;
+                                            console.log(
+                                                `Socket ${userId} left callKey ${callKey}`
+                                            );
+                                        }
+                                    }
+                                }
+
+                                console.log(
+                                    `🛑 ${
+                                        isOneToOne ? "1:1" : "Group"
+                                    } call in ${conversationId} ended`
+                                );
+                            } else {
+                                socket.to(callKey).emit("user-left-call", {
+                                    userId: participant,
+                                    conversationId,
+                                });
+                                console.log(
+                                    `🚶 ${participant} left group call in ${conversationId}`
+                                );
                             }
                         }
-
-                        console.log(
-                            `🛑 ${isOneToOne ? "1:1" : "Group"} call in ${conversationId} ended`
-                        );
-                    } else {
-                        socket.to(callKey).emit("user-left-call", {
-                            userId: participant,
-                            conversationId,
-                        });
-                        console.log(
-                            `🚶 ${participant} left group call in ${conversationId}`
-                        );
                     }
+                    // If reconnectData is null, the user is either still connected or never disconnected,
+                    // so no action is needed.
                 }
-            }
-            // If reconnectData is null, the user is either still connected or never disconnected,
-            // so no action is needed.
-        }
 
-        // Send call state update
-        socket.emit("call-state-update", {
-            conversationId,
-            callType: callData.callType || "voice",
-            participants,
-            startTime: callData.startTime,
+                // Send call state update
+                socket.emit("call-state-update", {
+                    conversationId,
+                    callType: callData.callType || "voice",
+                    participants,
+                    startTime: callData.startTime,
+                });
+                console.log(
+                    `Sent call state update to user ${userId} for conversation ${conversationId}`
+                );
+            } else {
+                socket.emit("call-error", {
+                    message: "No active call in this conversation.",
+                });
+                console.log(
+                    `User ${userId} has no active call. conversationId: ${conversationId}`
+                );
+            }
         });
-        console.log(
-            `Sent call state update to user ${userId} for conversation ${conversationId}`
-        );
-    } else {
-        socket.emit("call-error", {
-            message: "No active call in this conversation.",
-        });
-        console.log(`User ${userId} has no active call. conversationId: ${conversationId}`);
-    }
-});
 
         socket.on("disconnect", async () => {
             console.log(`🔴 User disconnected: ${userId}`);
