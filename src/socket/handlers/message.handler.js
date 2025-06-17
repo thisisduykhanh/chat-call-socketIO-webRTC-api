@@ -1,10 +1,10 @@
 const messageService = require("@/services/message.service");
-const reactionService = require("@/services/reaction.service");
 const pinnedMessageService = require("@/services/pinned.service");
-// const reactionService = require('@/services/reaction.service');
 const { emitToConversation } = require("~/socket/utils/socket.helpers");
 
 const ConversationService = require("~/api/services/conversation.service");
+
+const ReactionService = require("~/api/services/reaction.service");
 
 const UserSettingsService = require("~/api/services/user.settings.service");
 
@@ -163,42 +163,18 @@ module.exports = (socket, io) => {
     });
 
     // reaction
-    socket.on("message:reaction", async ({ messageId, reaction }) => {
+    socket.on("message:reaction", async ({ messageId, type }) => {
         try {
-            await reactionService.createReaction({
+            const message = await ReactionService.toggleReaction({
                 messageId,
                 userId: socket.user.id,
-                reaction,
+                type: type,
             });
-            io.emit("message:reacted", { messageId, reaction });
+
+            io.emit("message:reacted", { message });
         } catch (err) {
             console.error(err);
             socket.emit("error", "Không thể thêm phản ứng");
-        }
-    });
-
-    socket.on("message:unreaction", async ({ messageId, reaction }) => {
-        try {
-            await reactionService.deleteReaction({
-                messageId,
-                userId: socket.user.id,
-            });
-            io.emit("message:unreacted", { messageId, reaction });
-        } catch (err) {
-            console.error(err);
-            socket.emit("error", "Không thể bỏ phản ứng");
-        }
-    });
-
-    socket.on("message:getreaction", async ({ messageId }) => {
-        try {
-            const reactions = await reactionService.getReactionsForMessage(
-                messageId
-            );
-            socket.emit("message:reactions", { messageId, reactions });
-        } catch (err) {
-            console.error(err);
-            socket.emit("error", "Không thể lấy phản ứng");
         }
     });
 

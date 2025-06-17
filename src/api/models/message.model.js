@@ -111,6 +111,21 @@ const MessageSchema = new mongoose.Schema(
 		isDeletedForEveryone: { type: Boolean, default: false },
 		deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
 
+		reactions: [
+					{
+						user: {
+							type: mongoose.Schema.Types.ObjectId,
+							ref: "User",
+							required: true,
+						},
+						type: {
+							type: String,
+							// enum: ["like", "love", "haha", "sad", "angry", "wow"],
+							required: true,
+						},
+					},
+				],
+
 		// Sửa tin nhắn
 		isEdited: { type: Boolean, default: false },
 		editedAt: { type: Date },

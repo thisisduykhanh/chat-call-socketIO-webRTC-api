@@ -1,48 +1,38 @@
-const Reaction = require("@/models/reaction.model");
 const CreateError = require("http-errors");
+const Message = require("@/models/message.model");
 
 class ReactionService {
-	async createReaction({ messageId, userId, type }) {
-		// Kiểm tra nếu user đã reaction cho message này chưa
-		const existingReaction = await Reaction.findOne({
-			message: messageId,
-			user: userId,
-		});
-		if (existingReaction) {
-			throw CreateError.BadRequest("User has already reacted to this message.");
-		}
+    async toggleReaction({ messageId, userId, type }) {
+        const message = await Message.findById(messageId);
+        if (!message)
+            return CreateError(404, "Message not found");
 
-		// Tạo mới reaction
-		const reaction = new Reaction({
-			message: messageId,
-			user: userId,
-			type,
-		});
+        const existingReactionIndex = message.reactions.findIndex(
+            (r) => r.user.toString() === userId
+        );
 
-		const savedReaction = await reaction.save();
-		return savedReaction;
-	}
+        if (existingReactionIndex !== -1) {
+            const existingReaction = message.reactions[existingReactionIndex];
 
-	// Lấy tất cả reactions cho một message
-	async getReactionsForMessage(messageId) {
-		const reactions = await Reaction.find({ message: messageId }).populate(
-			"user",
-			"username",
-		); // Giả sử bạn muốn lấy tên người dùng
-		return reactions;
-	}
+            if (existingReaction.type === type) {
+                // Nếu đã thả cùng loại → gỡ reaction
+                message.reactions.splice(existingReactionIndex, 1);
+                await message.save();
+                return message;
+            } else {
+                // Nếu đã thả nhưng khác loại → cập nhật
+                message.reactions[existingReactionIndex].type = type;
+                await message.save();
+                return message;
+            }
+        } else {
+            // Nếu chưa thả → thêm mới
+            message.reactions.push({ user: userId, type });
+            await message.save();
+            return message;
+        }
+    }
 
-	// Xóa reaction của user trên message
-	async deleteReaction({ messageId, userId }) {
-		const deletedReaction = await Reaction.findOneAndDelete({
-			message: messageId,
-			user: userId,
-		});
-		if (!deletedReaction) {
-			throw CreateError.NotFound("Reaction not found.");
-		}
-		return deletedReaction;
-	}
 }
 
 module.exports = new ReactionService();

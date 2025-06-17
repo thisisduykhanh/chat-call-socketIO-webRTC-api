@@ -1,6 +1,5 @@
 const messageService = require("@/services/message.service");
 const pinnedMessageService = require("@/services/pinned.service");
-const reactionService = require("@/services/reaction.service");
 
 module.exports = {
 	/**
@@ -138,51 +137,7 @@ module.exports = {
 		}
 	},
 
-	// Reaction to a message
-	createReaction: async (req, res, next) => {
-		try {
-			const { messageId, type } = req.body;
-			const userId = req.user.id;
-
-			const newReaction = await reactionService.createReaction({
-				messageId,
-				userId,
-				type,
-			});
-
-			return res.status(201).json(newReaction);
-		} catch (error) {
-			next(error);
-		}
-	},
-
-	getReactionsForMessage: async (req, res, next) => {
-		try {
-			const { messageId } = req.params;
-
-			const reactions = await reactionService.getReactionsForMessage(messageId);
-
-			return res.status(200).json(reactions);
-		} catch (error) {
-			next(error);
-		}
-	},
-
-	deleteReaction: async (req, res, next) => {
-		try {
-			const { messageId } = req.params;
-			const userId = req.user.id; // Giả sử bạn đã lưu user trong req.user
-
-			const deletedReaction = await reactionService.deleteReaction({
-				messageId,
-				userId,
-			});
-
-			return res.status(200).json(deletedReaction);
-		} catch (error) {
-			next(error);
-		}
-	},
+	
 
 	getMessagesByConversationId: async (req, res, next) => {
 		try {
