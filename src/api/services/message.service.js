@@ -329,6 +329,10 @@ class MessageService {
                     path: "replyTo",
                     select: "content sender",
                 },
+                {
+                    path: "reactions.user",
+                    select: "username avatarUrl name",
+                }
             ]);
 
         if (!messages || messages.length === 0) {

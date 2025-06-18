@@ -171,7 +171,28 @@ module.exports = (socket, io) => {
                 type: type,
             });
 
-            io.emit("message:reacted", { message });
+
+            const participants = await ConversationService.getAllParticipants(
+                message.conversation._id.toString()
+            );
+
+            for (const participant of participants) {
+                const participantId = participant._id.toString();
+
+                if (participantId === socket.user.id) {
+                    socket.emit("message:reacted", {
+                        message: message,
+                    });
+                    continue; // Skip the sender
+                }
+
+                socket.to(participantId).emit("message:reacted", {
+                    message: message,
+                });
+                console.log(
+                    `Sent message to participant ${participantId} in conversation ${message.conversation._id.toString()}`
+                );
+            }
         } catch (err) {
             console.error(err);
             socket.emit("error", "Không thể thêm phản ứng");
