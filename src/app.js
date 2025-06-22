@@ -10,10 +10,12 @@ const morgan = require("morgan");
 const connectDB = require("~/config/mongoDB");
 const { connectRedis, cleanupRedis } = require("~/config/redis");
 
-const socket = require("~/socket");
+const socket = require("~/socket");	
 const http = require("node:http");
 const path = require("node:path");
 const cors = require("cors");
+
+const seeders = require("./seeders");
 
 const errorHandler = require("@/middleware/errorHandler");
 
@@ -21,6 +23,10 @@ require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
+
+// seeders
+// seeders();
+
 
 // connect to database
 connectDB();

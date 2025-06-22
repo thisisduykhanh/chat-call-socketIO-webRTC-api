@@ -41,18 +41,7 @@ module.exports = (app, server) => {
 
     // authentication middleware
     io.use((socket, next) => {
-        try {
-            socketAuth(socket, next);
-        } catch (err) {
-            console.error("❌ Authentication error:", err.message);
-
-            if (err.name === "TokenExpiredError") {
-                socket.emit("token-expired");
-                console.log("🔴 Token expired for socket:", socket.id);
-                return next(new Error("Token expired"));
-            }
-            return next(err);
-        }
+        socketAuth(socket, next);
     });
 
     io.on("connection", async (socket) => {
@@ -78,19 +67,42 @@ module.exports = (app, server) => {
                     // Xóa reconnect timeout
                     await clearReconnectTimeout(userId, conversationId);
 
-                    // Thông báo user-reconnected
-                    socket.to(callKey).emit("user-reconnected", {
-                        userId,
-                        conversationId,
-                        message: `${userId} has reconnected to the call`,
-                    });
+                     socket.join(callKey);
+                     socket.callKey = callKey;
 
-                    socket.emit("request-new-offer", {
-                        conversationId,
-                        participants: await sMembersAsync(
-                            `call:${conversationId}:participants`
-                        ),
-                    });
+                      const participantsKey = `call:${conversationId}:participants`;
+
+                      const reParticipants = await sMembersAsync(
+                            participantsKey
+                        );
+
+                    
+                        for (const participant of reParticipants) {
+                            if (participant !== userId) {
+                                socket.to(participant).emit("user-reconnected", {
+                                    userId,
+                                    conversationId,
+                                    message: `${userId} has reconnected to the call`,
+                                });
+                            
+                            }
+                        }
+
+
+
+                    // Thông báo user-reconnected
+                    // socket.to(callKey).emit("user-reconnected", {
+                    //     userId,
+                    //     conversationId,
+                    //     message: `${userId} has reconnected to the call`,
+                    // });
+
+                    // socket.emit("request-new-offer", {
+                    //     conversationId,
+                    //     participants: await sMembersAsync(
+                    //         `call:${conversationId}:participants`
+                    //     ),
+                    // });
 
                     // Gửi trạng thái cuộc gọi
                     const callData = await hGetAllAsync(

@@ -409,7 +409,7 @@ class MessageService {
         messages.forEach((msg) => {
             if (msg.media && msg.media.length > 0) {
                 msg.media.forEach((media) => {
-                    if (!mediaSet.has(media.fileUrl.toString())) {
+                    if (media.fileUrl && !mediaSet.has(media.fileUrl.toString())) {
                         mediaSet.add(media.fileUrl.toString());
                         mediaList.push({
                             fileId: media.fileId,

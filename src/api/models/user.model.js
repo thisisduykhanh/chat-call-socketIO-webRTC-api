@@ -6,6 +6,14 @@ const {
 
 const UserSettings = require("@/models/user.settings.model");
 
+
+// const {
+//     comparePassword,
+//     hashPassword,
+// } = require("../middleware/user.middleware");
+
+// const UserSettings = require("./user.settings.model");
+
 const UserSchema = new mongoose.Schema({
     name: String,
     username: { type: String, unique: true, sparse: true },

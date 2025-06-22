@@ -396,6 +396,7 @@ module.exports = (socket, io) => {
 
         const participants = await sMembersAsync(participantsKey);
 
+
         let conversationMembers;
         try {
             conversationMembers = await ConversationService.getAllParticipants(
