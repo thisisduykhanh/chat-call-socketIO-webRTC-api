@@ -423,6 +423,17 @@ class MessageService {
                             url: media.fileUrl,
                         });
                     }
+                    else{
+                       mediaList.push({
+                           fileId: media.fileId,
+                           type: msg.type,
+                           sender: msg.sender.name,
+                           fileName: media.fileName,
+                           fileSize: media.fileSize,
+                           mimeType: media.mimeType,
+                           createdAt: msg.createdAt,
+                       });
+                    }
                 });
             }
         });
