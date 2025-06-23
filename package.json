@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon -r tsconfig-paths/register ./src/server.js",
+    "seed": "node -r tsconfig-paths/register ./src/seeders/index.js",
     "start": "node -r tsconfig-paths/register ./src/server.js",
     "build": "tsc",
     "test": "nodemon -r tsconfig-paths/register ./src/server.js",

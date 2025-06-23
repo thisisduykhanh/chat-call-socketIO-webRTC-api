@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
-const acccountSeeder = require('./Account');
-const MessageSeeder = require('./Message');
+const acccountSeeder = require('./account');
+const MessageSeeder = require('./message');
 
 const connectDB = async () => {
 	try {
@@ -35,4 +35,4 @@ const seeders = async () => {
 
 
 
-module.exports = seeders;
+seeders()
