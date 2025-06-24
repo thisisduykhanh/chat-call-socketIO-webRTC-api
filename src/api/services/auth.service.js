@@ -254,12 +254,14 @@ class AuthService {
 		try {
 			const client = new OAuth2Client();
 
+			console.log(`idToken ${idToken}`)
+
 			const ticket = await client.verifyIdToken({
 				idToken,
 				// audience: [
-				// 	config.GOOGLE_CLIENT_ID_ANDROID,
+				// 	// config.GOOGLE_CLIENT_ID_ANDROID,
 				// 	config.GOOGLE_CLIENT_ID,
-				// 	config.GOOGLE_CLIENT_ID_IOS,
+				// 	// config.GOOGLE_CLIENT_ID_IOS,
 				// ],
 
 				audience: config.FIREBASE_GOOGLE_CLIENT_ID,
