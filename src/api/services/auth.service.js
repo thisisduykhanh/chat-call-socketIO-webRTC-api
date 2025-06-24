@@ -256,11 +256,13 @@ class AuthService {
 
 			const ticket = await client.verifyIdToken({
 				idToken,
-				audience: [
-					config.GOOGLE_CLIENT_ID_ANDROID,
-					config.GOOGLE_CLIENT_ID,
-					// config.GOOGLE_CLIENT_ID_IOS,
-				],
+				// audience: [
+				// 	config.GOOGLE_CLIENT_ID_ANDROID,
+				// 	config.GOOGLE_CLIENT_ID,
+				// 	config.GOOGLE_CLIENT_ID_IOS,
+				// ],
+
+				audience: config.GOOGLE_CLIENT_ID,
 			});
 
 			const payload = ticket.getPayload();
