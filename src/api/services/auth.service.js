@@ -262,7 +262,7 @@ class AuthService {
 				// 	config.GOOGLE_CLIENT_ID_IOS,
 				// ],
 
-				audience: config.GOOGLE_CLIENT_ID,
+				audience: config.FIREBASE_GOOGLE_CLIENT_ID,
 			});
 
 			const payload = ticket.getPayload();

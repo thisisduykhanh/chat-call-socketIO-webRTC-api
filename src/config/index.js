@@ -41,6 +41,7 @@ const schema = z.object({
 	GOOGLE_CLIENT_ID: z.string(),
 	GOOGLE_CLIENT_SECRET: z.string(),
 	GOOGLE_CLIENT_ID_ANDROID: z.string(),
+	FIREBASE_GOOGLE_CLIENT_ID: z.string(),
 	// GOOGLE_CLIENT_ID_IOS: z.string(),
 	ACCESS_TOKEN_EXPIRY: z.string().default("30m"),
 	COOKIE_TOKEN_EXPIRY: z.string().default("1800000"),
