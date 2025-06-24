@@ -25,7 +25,7 @@ const admin = require("~/config/firebase-admin");
 
 class AuthService {
 	async register({ name, email, phone, password }) {
-		if (!email && !phone)
+		if (!email || !phone)
 			throw CreateError.BadRequest("Email or phone is required");
 		if (!password) throw CreateError.BadRequest("Password is required");
 		if (password.length < 6)
