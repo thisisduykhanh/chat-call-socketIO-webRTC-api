@@ -280,23 +280,28 @@ class AuthService {
 			let user;
 
 			if (!cred) {
-				const newUser = new User({
+				let existingUser = await User.findOne({email});
+
+			
+				if(!existingUser){
+					existingUser = await new User({
 					email,
 					name,
 					phone: phone,
 					username: googleId,
 					verified: true,
 					avatarUrl: avatar,
-				});
-				const savedUser = await newUser.save();
+				}).save();
+				}
+
 
 				await new FederatedCredential({
-					user_id: savedUser._id,
+					user_id: existingUser._id,
 					provider: "https://accounts.google.com",
 					subject: googleId,
 				}).save();
 
-				user = savedUser;
+				user = existingUser;
 			} else {
 				user = await User.findById(cred.user_id);
 			}
