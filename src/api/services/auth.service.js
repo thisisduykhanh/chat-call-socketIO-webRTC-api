@@ -255,6 +255,7 @@ class AuthService {
 			const client = new OAuth2Client();
 
 			console.log(`idToken ${idToken}`)
+			console.log(`idToken 2 ${config.FIREBASE_GOOGLE_CLIENT_ID}`)
 
 			const ticket = await client.verifyIdToken({
 				idToken,
