@@ -5,7 +5,6 @@ const {
 
 const MessageService = require("~/api/services/message.service");
 
-const { rPushAsync } = require("~/config/redis");
 
 function getOnlineUserIdsExceptSelf(io, selfUserId) {
 	return io.fetchSockets().then((sockets) => {

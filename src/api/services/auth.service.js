@@ -173,6 +173,9 @@ class AuthService {
 
 		if (!user) throw CreateError.Unauthorized("Invalid Refresh Token");
 
+		await delAsync(`user:${userId}:fcmToken`);
+		await delAsync(`user:${userId}:platform`);
+
 		await delAsync(`refresh_token:${userId}:${sessionId}`); // Xóa refresh token cũ nếu có
 	}
 
@@ -191,6 +194,9 @@ class AuthService {
 		if (!keys || keys.length === 0)
 			throw CreateError.Unauthorized("Invalid token");
 
+
+		await delAsync(`user:${userId}:fcmToken`);
+		await delAsync(`user:${userId}:platform`);
 		await delAsync(keys);
 
 		return { message: "Logged out from all devices" };
