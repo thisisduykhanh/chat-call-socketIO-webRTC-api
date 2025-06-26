@@ -20,6 +20,7 @@ const errorHandler = require("@/middleware/errorHandler");
 require("dotenv").config();
 
 const app = express();
+app.set('trust proxy', true); 
 const server = http.createServer(app);
 
 // connect to database

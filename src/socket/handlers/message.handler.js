@@ -21,6 +21,14 @@ module.exports = (socket, io) => {
             );
 
             for (const participant of participants) {
+                if (participant._id.toString() === userId.toString()) {
+                    socket.emit("conversation:updateMessageStatus", {
+                        messages,
+                        conversationId,
+                    });
+                    continue; // Skip the sender
+                }
+
                 socket
                     .to(participant._id.toString())
                     .emit("conversation:updateMessageStatus", {
@@ -170,7 +178,6 @@ module.exports = (socket, io) => {
                 userId: socket.user.id,
                 type: type,
             });
-
 
             const participants = await ConversationService.getAllParticipants(
                 message.conversation._id.toString()
