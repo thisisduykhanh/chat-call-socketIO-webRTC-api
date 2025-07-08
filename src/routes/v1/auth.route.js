@@ -5,8 +5,8 @@ const AuthCtrl = require("@/controllers/auth.controller");
 const router = express.Router();
 
 const {
-	verifyFirebaseToken,
-	verifyAccessToken,
+    verifyFirebaseToken,
+    verifyAccessToken,
 } = require("@/middleware/auth.middleware");
 
 router.get("/me", verifyAccessToken, AuthCtrl.getMe);
@@ -26,5 +26,6 @@ router.post("/forgot-password", AuthCtrl.forgotPassword);
 router.post("/verify-otp-reset-password", AuthCtrl.verifyOTPResetPassword);
 router.post("/reset-password", AuthCtrl.resetPassword);
 router.post("/change-password", verifyAccessToken, AuthCtrl.changePassword);
+router.patch("/update-profile", verifyAccessToken, AuthCtrl.updateProfile);
 
 module.exports = router;

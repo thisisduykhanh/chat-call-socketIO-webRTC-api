@@ -81,6 +81,16 @@ async function handleFileUpload(req, res, next) {
         next(new CreateError.InternalServerError("File upload failed."));
     }
 }
+
+async function deleteFromCloudinary(publicId) {
+    return new Promise((resolve, reject) => {
+        cloudinary.uploader.destroy(publicId, (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+        });
+    });
+}
+
 async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
     const isImage = mimetype.startsWith("image");
     const isVideo = mimetype.startsWith("video");
@@ -117,6 +127,7 @@ async function uploadToCloudinary(buffer, mimetype, fileId, originalname) {
                     fileSize: result.bytes,
                     mimeType: mimetype,
                     blurHash: blurHash,
+                    publicId: result.public_id,
                 });
             }
         );

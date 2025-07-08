@@ -62,6 +62,7 @@ module.exports = (socket, io) => {
             conversationId,
             socket.user.id
         );
+
         socket.leave(conversationId);
 
         console.log(
